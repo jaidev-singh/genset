@@ -114,7 +114,7 @@ export default function DeputationForm({ onSaved }) {
       const { data, error } = await supabase
         .from("complaints")
         .select("id, complaint_number, cm_category, cm_nature, complaint_date, sites(id, site_id, name, site_location, kva, engine_serial_no, engine_model, contact_person, contact_phone)")
-        .not("status", "eq", "Closed")
+        .not("work_status", "eq", "Closed")
         .order("complaint_date", { ascending: false })
       if (error) throw error
       return data.filter(c => c.sites)
@@ -147,48 +147,42 @@ export default function DeputationForm({ onSaved }) {
                        : CM_WORK_TYPES.has(workType)  ? "complaint"
                        : "all"
 
+  // Build lookup maps for PM plans and complaints by site id
+  const planBySiteId  = useMemo(() => { const m = {}; pendingPlans.forEach(p => { if (p.sites) m[p.sites.id] = p }); return m  }, [pendingPlans])
+  const cmBySiteId    = useMemo(() => { const m = {}; openComplaintsGlobal.forEach(c => { if (c.sites) m[c.sites.id] = c }); return m }, [openComplaintsGlobal])
+
   const suggestions = useMemo(() => {
     if (!query.trim()) return []
     const q = norm(query)
-
-    if (suggestionType === "pm") {
-      return pendingPlans
-        .filter(p =>
-          norm(p.sites.site_id).includes(q) ||
-          norm(p.sites.name).includes(q) ||
-          norm(p.sites.site_location).includes(q) ||
-          norm(p.pm_request_number).includes(q)
-        )
-        .slice(0, 8)
-        .map(p => ({ ...p.sites, _planId: p.id, _planNum: p.pm_request_number, _planDate: p.planned_date, _serviceType: p.service_type }))
-    }
-
-    if (suggestionType === "complaint") {
-      return openComplaintsGlobal
-        .filter(c =>
-          norm(c.sites.site_id).includes(q) ||
-          norm(c.sites.name).includes(q) ||
-          norm(c.complaint_number).includes(q) ||
-          norm(c.cm_nature).includes(q)
-        )
-        .slice(0, 8)
-        .map(c => ({ ...c.sites, _complaintId: c.id, _complaintNum: c.complaint_number, _cmCategory: c.cm_category, _cmNature: c.cm_nature }))
-    }
-
+    // Always search all sites — attach PM plan / complaint context when available
     return sites
       .filter(s =>
         norm(s.site_id).includes(q) ||
         norm(s.name).includes(q) ||
         norm(s.engine_serial_no).includes(q) ||
         norm(s.site_location).includes(q)
-      ).slice(0, 8)
-  }, [query, suggestionType, sites, pendingPlans, openComplaintsGlobal])
+      )
+      .slice(0, 10)
+      .map(s => {
+        const plan = planBySiteId[s.id]
+        const cm   = cmBySiteId[s.id]
+        return {
+          ...s,
+          _planId:      plan?._planId      ?? plan?.id ?? null,
+          _planNum:     plan?.pm_request_number ?? null,
+          _planDate:    plan?.planned_date ?? null,
+          _serviceType: plan?.service_type ?? null,
+          _complaintId:  cm?.id ?? null,
+          _complaintNum: cm?.complaint_number ?? null,
+          _cmCategory:   cm?.cm_category ?? null,
+          _cmNature:     cm?.cm_nature ?? null,
+        }
+      })
+  }, [query, sites, planBySiteId, cmBySiteId])
 
-  // When site changes â†’ fetch pending pm_plan + open complaints
-  // Only runs for 'all' source â€” register sources set data directly in selectSite
+  // When site changes → fetch pending pm_plan + open complaints
   useEffect(() => {
     if (!site) { setPendingPlan(null); setPmPlanId(null); setOpenComplaints([]); return }
-    if (suggestionType !== "all") return
     let cancelled = false
     setFinding(true)
 
@@ -204,7 +198,7 @@ export default function DeputationForm({ onSaved }) {
       supabase.from("complaints")
         .select("id, complaint_number, cm_category, complaint_date")
         .eq("site_id", site.id)
-        .in("status", ["Open", "Approved"])
+        .not("work_status", "eq", "Closed")
         .order("complaint_date", { ascending: false })
         .limit(10)
     ]).then(([planRes, compRes]) => {
@@ -327,7 +321,7 @@ export default function DeputationForm({ onSaved }) {
         <FieldWrap style={{ flex: 2 }}>
           <FieldLabel required>Technician</FieldLabel>
           <select value={techId} onChange={e => setTechId(e.target.value)} style={inputStyle}>
-            <option value="">â€” select â€”</option>
+            <option value=""> select </option>
             {technicians.map(t => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
