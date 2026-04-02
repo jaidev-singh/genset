@@ -101,12 +101,13 @@ export default function TechSitePopup({
       position:     "absolute",
       top:          0, left: 0, right: 0,
       width:        "100%",
-      maxHeight:    "65vh",
+      maxHeight:    "44vh",
       overflowY:    "auto",
       background:   "white",
       borderRadius:  "0 0 14px 14px",
       boxShadow:    "0 4px 20px rgba(0,0,0,0.22)",
-      padding:      "12px 16px",
+      padding:      "8px 12px 10px",
+      paddingTop:   36,
       zIndex:       1000
     } : {
       // Desktop: floating card top-right
@@ -125,10 +126,13 @@ export default function TechSitePopup({
         onClick={onClose}
         style={{
           position: "absolute", top: 8, right: 10,
-          border: "none", background: "transparent",
-          cursor: "pointer", fontSize: 16, color: "#999"
+          border: "none", background: "#f1f5f9",
+          cursor: "pointer", fontSize: 13, color: "#475569",
+          width: 28, height: 28, borderRadius: "50%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontWeight: 700, zIndex: 10, flexShrink: 0
         }}
-      >✖</button>
+      >✕</button>
 
       {/* Site identity */}
       <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>{site.site_id}</h3>

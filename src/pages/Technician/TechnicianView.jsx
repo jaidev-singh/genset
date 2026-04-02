@@ -80,6 +80,9 @@ export default function TechnicianView() {
   // selected site (enriched with _distance)
   const [selectedSite, setSelectedSite] = useState(null)
 
+  // site search
+  const [siteSearch, setSiteSearch] = useState("")
+
   // drag-pin / tap-on-map mode
   const [dragPinMode, setDragPinMode] = useState(false)
   const [dragPinPos,  setDragPinPos]  = useState(null)  // { lat, lng }
@@ -107,6 +110,19 @@ export default function TechnicianView() {
       .filter(s => s._distance <= radius * 1000)
       .sort((a, b) => a._distance - b._distance)
   }, [sites, techLocation, radius])
+
+  // All sites matching the search query (searched across entire dataset)
+  const searchResults = useMemo(() => {
+    const q = siteSearch.trim().toLowerCase()
+    if (!q) return []
+    return sites
+      .filter(s => s.latitude != null && s.longitude != null)
+      .filter(s =>
+        (s.site_id || "").toLowerCase().includes(q) ||
+        (s.customers?.name || s.name || "").toLowerCase().includes(q)
+      )
+      .slice(0, 8)
+  }, [sites, siteSearch])
 
   // ── handlers ──────────────────────────────────────────────────────────────
 
@@ -389,6 +405,49 @@ export default function TechnicianView() {
               style={{ width: "100%", accentColor: "#1a73e8" }}
             />
           </div>
+
+          {/* ── Site search ── */}
+          <div style={{ width: "100%", position: "relative" }}>
+            <input
+              type="text"
+              placeholder="🔍 Search site ID or name…"
+              value={siteSearch}
+              onChange={e => setSiteSearch(e.target.value)}
+              style={{
+                width: "100%", padding: "7px 10px",
+                border: "1px solid #ddd", borderRadius: 7,
+                fontSize: 13, outline: "none",
+                boxSizing: "border-box"
+              }}
+            />
+            {searchResults.length > 0 && (
+              <div style={{
+                position: "absolute", top: "100%", left: 0, right: 0,
+                background: "white", border: "1px solid #e2e8f0",
+                borderRadius: "0 0 8px 8px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                maxHeight: 200, overflowY: "auto", zIndex: 2000
+              }}>
+                {searchResults.map(site => (
+                  <div
+                    key={site.id}
+                    onClick={() => { openSite(site); setSiteSearch("") }}
+                    style={{
+                      padding: "8px 12px", cursor: "pointer", fontSize: 13,
+                      borderBottom: "1px solid #f0f0f0", background: "white"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                    onMouseLeave={e => e.currentTarget.style.background = "white"}
+                  >
+                    <strong>{site.site_id}</strong>
+                    <span style={{ color: "#888", marginLeft: 6 }}>
+                      {site.customers?.name || site.name || ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Drag-mode banner (bottom-centre, above bottom sheet on mobile) ── */}
@@ -422,7 +481,18 @@ export default function TechnicianView() {
             map.setZoom(DEFAULT_ZOOM)
           }}
           onClick={handleMapClick}
-          options={{ cursor: dragPinMode ? "crosshair" : undefined }}
+          options={{
+            cursor: dragPinMode ? "crosshair" : undefined,
+            mapTypeControlOptions: {
+              position: window.google.maps.ControlPosition.BOTTOM_LEFT
+            },
+            zoomControlOptions: {
+              position: window.google.maps.ControlPosition.RIGHT_BOTTOM
+            },
+            fullscreenControlOptions: {
+              position: window.google.maps.ControlPosition.RIGHT_BOTTOM
+            }
+          }}
         >
           {/* Radius circle */}
           {techLocation && (

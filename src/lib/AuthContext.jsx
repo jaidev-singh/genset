@@ -1,13 +1,13 @@
 import { createContext, useContext, useState } from "react"
 
-// Hardcoded credentials — change passwords here if needed
+// Credentials now use environment variables for passwords (set in Vercel dashboard)
 const CREDS = {
-  admin: { password: "jaidev@2024", role: "admin", name: "Jaidev" },
-  boss:  { password: "boss@2024",   role: "boss",  name: "Boss"   },
+  admin: { password: import.meta.env.VITE_ADMIN_PASSWORD, role: "admin", name: "Jaidev" },
+  boss:  { password: import.meta.env.VITE_BOSS_PASSWORD,  role: "boss",  name: "Boss"   },
 }
 
-// Shared PIN for all technicians
-export const TECH_PIN = "1234"
+// Shared PIN for all technicians (from environment variable)
+export const TECH_PIN = import.meta.env.VITE_TECH_PIN
 
 const AuthContext = createContext(null)
 
