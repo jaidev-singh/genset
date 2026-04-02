@@ -107,6 +107,7 @@ export default function SitesPage() {
         site_id:          form.site_id.trim(),
         name:             form.name.trim(),
         site_location:    form.site_location || null,
+        district:         form.site_location || null,
         kva:              form.kva ? Number(form.kva) : null,
         office_id:        form.office_id ? Number(form.office_id) : null,
         contact_person:   form.contact_person || null,
