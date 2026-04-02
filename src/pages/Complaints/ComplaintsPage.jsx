@@ -18,15 +18,18 @@ const OFFICES = [
   { id: 3, name: "Badaun" },
 ]
 
-const STATUSES = ["Pending", "Approval Pending", "Quotation Pending", "Approved", "In Process", "Closed"]
+const WORK_STATUSES = ["Pending", "In Process", "Closed"]
+const APPROVAL_STATUSES = ["Pending", "Rejected", "Approved"]
 
-const STATUS_STYLE = {
-  "Pending":           { bg: "#fee2e2", color: "#dc2626" },
-  "Approval Pending":  { bg: "#fef9c3", color: "#854d0e" },
-  "Quotation Pending": { bg: "#fef3c7", color: "#92400e" },
-  "Approved":          { bg: "#dbeafe", color: "#1d4ed8" },
-  "In Process":        { bg: "#d1fae5", color: "#065f46" },
-  "Closed":            { bg: "#f0fdf4", color: "#15803d" },
+const WORK_STATUS_STYLE = {
+  "Pending":    { bg: "#fee2e2", color: "#dc2626" },
+  "In Process": { bg: "#d1fae5", color: "#065f46" },
+  "Closed":     { bg: "#f0fdf4", color: "#15803d" },
+}
+const APPROVAL_STATUS_STYLE = {
+  "Pending":  { bg: "#fef9c3", color: "#854d0e" },
+  "Rejected": { bg: "#fee2e2", color: "#dc2626" },
+  "Approved": { bg: "#dbeafe", color: "#1d4ed8" },
 }
 
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
@@ -39,12 +42,12 @@ const emptyForm = () => ({
   site_name_manual: "",
   city_manual: "",
   kva_manual: "",
-  complaint_number_ref: "",   // the CM/PM reference number tracked in this register
   cm_nature: "",
   is_in_scope: true,
   customer_name_manual: "",
   customer_phone_manual: "",
-  status: "Pending",
+  work_status: "Pending",
+  approval_status: "Pending",
   approval_date: "",
   closed_date: "",
   remarks: "",
@@ -53,13 +56,13 @@ const emptyForm = () => ({
 const norm = s => (s ?? "").toString().toLowerCase()
 
 // ── helpers ────────────────────────────────────────────────────────────────
-function Badge({ status }) {
-  const s = STATUS_STYLE[status] ?? { bg: "#f3f4f6", color: "#374151" }
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: "2px 8px", borderRadius: 20, fontWeight: 700, fontSize: 11, whiteSpace: "nowrap" }}>
-      {status}
-    </span>
-  )
+function WorkBadge({ status }) {
+  const s = WORK_STATUS_STYLE[status] ?? { bg: "#f3f4f6", color: "#374151" }
+  return <span style={{ background: s.bg, color: s.color, padding: "2px 8px", borderRadius: 20, fontWeight: 700, fontSize: 11, whiteSpace: "nowrap" }}>{status}</span>
+}
+function ApprovalBadge({ status }) {
+  const s = APPROVAL_STATUS_STYLE[status] ?? { bg: "#f3f4f6", color: "#374151" }
+  return <span style={{ background: s.bg, color: s.color, padding: "2px 8px", borderRadius: 20, fontWeight: 700, fontSize: 11, whiteSpace: "nowrap" }}>{status}</span>
 }
 
 function Td({ children, style }) {
@@ -89,12 +92,13 @@ export default function ComplaintsPage() {
   const qc = useQueryClient()
 
   // filters
-  const [search, setSearch]           = useState("")
-  const [catFilter, setCatFilter]       = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [officeFilter, setOfficeFilter] = useState("all")
-  const [scopeFilter, setScopeFilter]   = useState("all")   // all | in | out
-  const [cmNumFilter, setCmNumFilter]   = useState("all")   // all | blank | filled
+  const [search, setSearch]                   = useState("")
+  const [catFilter, setCatFilter]               = useState("all")
+  const [workStatusFilter, setWorkStatusFilter] = useState("all")
+  const [approvalStatusFilter, setApprovalStatusFilter] = useState("all")
+  const [officeFilter, setOfficeFilter]         = useState("all")
+  const [scopeFilter, setScopeFilter]           = useState("all")   // all | in | out
+  const [cmNumFilter, setCmNumFilter]           = useState("all")   // all | blank | filled
 
   // slide-in panel
   const [panel, setPanel]   = useState(null)   // null | "new" | complaint object (edit)
@@ -117,7 +121,7 @@ export default function ComplaintsPage() {
           id, complaint_number, complaint_date, cm_category,
           cm_nature, is_in_scope, customer_name_manual, customer_phone_manual,
           site_name_manual, city_manual, kva_manual,
-          status, approval_date, closed_date, remarks,
+          work_status, approval_status, approval_date, closed_date, remarks,
           site_id, sites(id, site_id, name, site_location, kva, contact_person, contact_phone, office_id)
         `)
         .order("id", { ascending: false })
@@ -149,14 +153,7 @@ export default function ComplaintsPage() {
   })
 
   // ── filtered rows ─────────────────────────────────────────────────────────
-  const STATUS_ORDER = {
-    "Pending":           0,
-    "In Process":        1,
-    "Quotation Pending": 2,
-    "Approval Pending":  3,
-    "Approved":          4,
-    "Closed":            5,
-  }
+  const WORK_STATUS_ORDER = { "Pending": 0, "In Process": 1, "Closed": 2 }
 
   // Complaints where the same site appears more than once in the same calendar month
   const dupComplaintIds = useMemo(() => {
@@ -176,7 +173,8 @@ export default function ComplaintsPage() {
     return complaints
       .filter(c => {
         if (catFilter !== "all" && c.cm_category !== catFilter) return false
-        if (statusFilter !== "all" && c.status !== statusFilter) return false
+        if (workStatusFilter !== "all" && c.work_status !== workStatusFilter) return false
+        if (approvalStatusFilter !== "all" && c.approval_status !== approvalStatusFilter) return false
         if (officeFilter !== "all") {
           if (!c.sites || String(c.sites.office_id) !== officeFilter) return false
         }
@@ -201,10 +199,9 @@ export default function ComplaintsPage() {
         return true
       })
       .sort((a, b) => {
-        const sa = STATUS_ORDER[a.status] ?? 99
-        const sb = STATUS_ORDER[b.status] ?? 99
+        const sa = WORK_STATUS_ORDER[a.work_status] ?? 99
+        const sb = WORK_STATUS_ORDER[b.work_status] ?? 99
         if (sa !== sb) return sa - sb
-        // within same status: latest complaint_date first, then latest id first
         const da = a.complaint_date ?? ""
         const db = b.complaint_date ?? ""
         if (da !== db) return db.localeCompare(da)
@@ -248,7 +245,8 @@ export default function ComplaintsPage() {
       is_in_scope:           c.is_in_scope            ?? true,
       customer_name_manual:  c.customer_name_manual   ?? "",
       customer_phone_manual: c.customer_phone_manual  ?? "",
-      status:                c.status                 ?? "Pending",
+      work_status:           c.work_status            ?? "Pending",
+      approval_status:       c.approval_status        ?? "Pending",
       approval_date:         c.approval_date          ?? "",
       closed_date:           c.closed_date            ?? "",
       remarks:               c.remarks                ?? "",
@@ -271,11 +269,10 @@ export default function ComplaintsPage() {
 
   const handleSave = async () => {
     setSaveErr("")
-    if (!form.complaint_number.trim()) { setSaveErr("CM/PM No. is required."); return }
     setSaving(true)
     try {
       const payload = {
-        complaint_number:      form.complaint_number.trim(),
+        complaint_number:      form.complaint_number.trim() || null,
         complaint_date:        form.complaint_date || null,
         cm_category:           form.cm_category,
         site_id:               form.site_id || null,
@@ -286,10 +283,12 @@ export default function ComplaintsPage() {
         is_in_scope:           form.is_in_scope,
         customer_name_manual:  form.customer_name_manual || null,
         customer_phone_manual: form.customer_phone_manual || null,
-        status:                form.status,
+        work_status:           form.work_status,
+        approval_status:       form.approval_status,
         approval_date:         form.approval_date || null,
         closed_date:           form.closed_date || null,
         remarks:               form.remarks || null,
+        source:                "manual",
       }
 
       if (panel === "new") {
@@ -318,8 +317,8 @@ export default function ComplaintsPage() {
   }
 
   // ── resolved counts for header ────────────────────────────────────────────
-  const openCount     = complaints.filter(c => c.status !== "Closed").length
-  const resolvedCount = complaints.filter(c => c.status === "Closed").length
+  const openCount     = complaints.filter(c => c.work_status !== "Closed").length
+  const resolvedCount = complaints.filter(c => c.work_status === "Closed").length
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
@@ -353,10 +352,16 @@ export default function ComplaintsPage() {
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          <select value={workStatusFilter} onChange={e => setWorkStatusFilter(e.target.value)}
             style={{ padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13 }}>
-            <option value="all">All Statuses</option>
-            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="all">Work Status — All</option>
+            {WORK_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          <select value={approvalStatusFilter} onChange={e => setApprovalStatusFilter(e.target.value)}
+            style={{ padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13 }}>
+            <option value="all">Approval — All</option>
+            {APPROVAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
           <select value={officeFilter} onChange={e => setOfficeFilter(e.target.value)}
@@ -392,14 +397,14 @@ export default function ComplaintsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8fafc", position: "sticky", top: 0, zIndex: 2 }}>
-                  {["#","CM/PM No.","Date","Status","Category","Site ID","Site Name","City","KVA","CM Nature","Scope","Customer","Phone","Approval Date","Closed Date","Remarks"].map(h => (
+                  {["#","CM/PM No.","Date","Work Status","Approval","Category","Site ID","Site Name","City","KVA","CM Nature","Scope","Customer","Phone","Approval Date","Closed Date","Remarks"].map(h => (
                     <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, fontSize: 12, color: "#475569", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 && (
-                  <tr><td colSpan={16} style={{ padding: 32, textAlign: "center", color: "#9ca3af" }}>No complaints found</td></tr>
+                  <tr><td colSpan={17} style={{ padding: 32, textAlign: "center", color: "#9ca3af" }}>No complaints found</td></tr>
                 )}
                 {rows.map((c, i) => {
                   const site = c.sites
@@ -415,9 +420,10 @@ export default function ComplaintsPage() {
                       onMouseLeave={e => { e.currentTarget.style.background = normalBg }}
                     >
                       <Td style={{ color: "#9ca3af" }}>{c.id}</Td>
-                      <Td style={{ fontWeight: 700, color: "#1d4ed8" }}>{c.complaint_number}</Td>
+                      <Td style={{ fontWeight: 700, color: "#1d4ed8" }}>{c.complaint_number ?? "—"}</Td>
                       <Td>{c.complaint_date ?? "—"}</Td>
-                      <Td><Badge status={c.status} /></Td>
+                      <Td><WorkBadge status={c.work_status ?? "Pending"} /></Td>
+                      <Td><ApprovalBadge status={c.approval_status ?? "Pending"} /></Td>
                       <Td><span style={{ background: "#f1f5f9", padding: "2px 7px", borderRadius: 4, fontSize: 11 }}>{c.cm_category ?? "—"}</span></Td>
                       <Td style={{ fontWeight: 600, color: "#374151" }}>{site?.site_id ?? "—"}</Td>
                       <Td>{site?.name ?? c.site_name_manual ?? "—"}</Td>
@@ -464,7 +470,7 @@ export default function ComplaintsPage() {
             </div>
 
             {/* CM/PM Number */}
-            <FormRow label="CM / PM No. *">
+            <FormRow label="CM / PM No. (optional)">
               <input value={form.complaint_number} onChange={set("complaint_number")} placeholder="e.g. CM-2024-001" style={inputStyle} />
             </FormRow>
 
@@ -552,12 +558,18 @@ export default function ComplaintsPage() {
               </div>
             </div>
 
-            {/* Status + Approval Date */}
+            {/* Status fields */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Status</label>
-                <select value={form.status} onChange={set("status")} style={{ ...inputStyle, marginTop: 4 }}>
-                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Work Status</label>
+                <select value={form.work_status} onChange={set("work_status")} style={{ ...inputStyle, marginTop: 4 }}>
+                  {WORK_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Approval Status</label>
+                <select value={form.approval_status} onChange={set("approval_status")} style={{ ...inputStyle, marginTop: 4 }}>
+                  {APPROVAL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>

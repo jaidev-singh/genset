@@ -10,10 +10,11 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { supabase } from "../../lib/supabase"
 
-const STATUSES = [null, "P", "L", "H"]   // cycle order
+const STATUSES = [null, "P", "L", "O", "H"]   // cycle order: blank → Present → Leave → Office → Holiday
 const STATUS_STYLE = {
   P: { background: "#dcfce7", color: "#15803d", fontWeight: 700 },
   L: { background: "#fee2e2", color: "#dc2626", fontWeight: 700 },
+  O: { background: "#dbeafe", color: "#1d4ed8", fontWeight: 700 },
   H: { background: "#fef9c3", color: "#92400e", fontWeight: 700 },
 }
 
@@ -152,7 +153,7 @@ export default function AttendancePage() {
   // ── month summary per tech ─────────────────────────────────────────────────
   const summary = useMemo(() => {
     const map = {}
-    techs.forEach(t => { map[t.id] = { P: 0, L: 0, H: 0 } })
+    techs.forEach(t => { map[t.id] = { P: 0, L: 0, O: 0, H: 0 } })
     records.forEach(r => {
       if (map[r.technician_id]) map[r.technician_id][r.status] = (map[r.technician_id][r.status] ?? 0) + 1
     })
@@ -258,6 +259,7 @@ export default function AttendancePage() {
               })}
               <th style={{ ...thDay, minWidth: 32, color: "#15803d", fontSize: 11, fontWeight: 700 }}>P</th>
               <th style={{ ...thDay, minWidth: 32, color: "#dc2626", fontSize: 11, fontWeight: 700 }}>L</th>
+              <th style={{ ...thDay, minWidth: 32, color: "#1d4ed8", fontSize: 11, fontWeight: 700 }}>O</th>
               <th style={{ ...thDay, minWidth: 32, color: "#92400e", fontSize: 11, fontWeight: 700 }}>H</th>
             </tr>
             {/* Day number row — click to mark holiday */}
@@ -340,6 +342,9 @@ export default function AttendancePage() {
                 <td style={{ textAlign: "center", fontWeight: 700, color: "#dc2626" }}>
                   {summary[tech.id]?.L ?? 0}
                 </td>
+                <td style={{ textAlign: "center", fontWeight: 700, color: "#1d4ed8" }}>
+                  {summary[tech.id]?.O ?? 0}
+                </td>
                 <td style={{ textAlign: "center", fontWeight: 700, color: "#92400e" }}>
                   {(summary[tech.id]?.H ?? 0) + sundayCount}
                 </td>
@@ -367,7 +372,7 @@ export default function AttendancePage() {
               <td style={{ textAlign: "center", fontWeight: 800, color: "#1d4ed8", paddingLeft: 8, fontSize: 14 }}>
                 {cumulativeTotal[numDays] ?? 0}
               </td>
-              <td /><td />
+              <td /><td /><td />
             </tr>
           </tbody>
         </table>
