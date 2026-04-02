@@ -18,6 +18,7 @@ const OFFICES = [
   { id: 3, name: "Badaun" },
 ]
 
+const COMPLAINT_WORK_TYPES = ["CM", "PM Service", "Top Up", "Overhauling", "Commissioning", "Other"]
 const WORK_STATUSES = ["Pending", "In Process", "Closed"]
 const APPROVAL_STATUSES = ["N/A", "Pending", "Quotation Pending", "Rejected", "Approved"]
 
@@ -48,6 +49,7 @@ const emptyForm = () => ({
   is_in_scope: true,
   customer_name_manual: "",
   customer_phone_manual: "",
+  work_type: "CM",
   work_status: "Pending",
   approval_status: "N/A",
   approval_date: "",
@@ -96,6 +98,7 @@ export default function ComplaintsPage() {
   // filters
   const [search, setSearch]                   = useState("")
   const [catFilter, setCatFilter]               = useState("all")
+  const [workTypeFilter, setWorkTypeFilter]       = useState("all")
   const [workStatusFilter, setWorkStatusFilter] = useState("all")
   const [approvalStatusFilter, setApprovalStatusFilter] = useState("all")
   const [officeFilter, setOfficeFilter]         = useState("all")
@@ -115,7 +118,7 @@ export default function ComplaintsPage() {
 
   // new site mini-form
   const [showNewSite, setShowNewSite] = useState(false)
-  const [newSiteForm, setNewSiteForm] = useState({ site_id: "", name: "", site_location: "", kva: "", office_id: "", contact_person: "", contact_phone: "", commissioning_date: "" })
+  const [newSiteForm, setNewSiteForm] = useState({ site_id: "", name: "", site_location: "", kva: "", office_id: "", contact_person: "", contact_phone: "" })
   const [savingNewSite, setSavingNewSite] = useState(false)
   const [newSiteErr, setNewSiteErr] = useState("")
 
@@ -129,7 +132,7 @@ export default function ComplaintsPage() {
           id, complaint_number, complaint_date, cm_category,
           cm_nature, is_in_scope, customer_name_manual, customer_phone_manual,
           site_name_manual, city_manual, kva_manual,
-          work_status, approval_status, approval_date, closed_date, remarks,
+          work_type, work_status, approval_status, approval_date, closed_date, remarks,
           site_id, sites(id, site_id, name, site_location, kva, contact_person, contact_phone, office_id)
         `)
         .order("id", { ascending: false })
@@ -181,6 +184,7 @@ export default function ComplaintsPage() {
     return complaints
       .filter(c => {
         if (catFilter !== "all" && c.cm_category !== catFilter) return false
+        if (workTypeFilter !== "all" && c.work_type !== workTypeFilter) return false
         if (workStatusFilter !== "all" && c.work_status !== workStatusFilter) return false
         if (approvalStatusFilter !== "all" && c.approval_status !== approvalStatusFilter) return false
         if (officeFilter !== "all") {
@@ -215,7 +219,7 @@ export default function ComplaintsPage() {
         if (da !== db) return db.localeCompare(da)
         return b.id - a.id
       })
-  }, [complaints, search, catFilter, workStatusFilter, approvalStatusFilter, officeFilter, scopeFilter, cmNumFilter])
+  }, [complaints, search, catFilter, workTypeFilter, workStatusFilter, approvalStatusFilter, officeFilter, scopeFilter, cmNumFilter])
 
   // ── site autocomplete suggestions ─────────────────────────────────────────
   const siteSuggestions = useMemo(() => {
@@ -253,6 +257,7 @@ export default function ComplaintsPage() {
       is_in_scope:           c.is_in_scope            ?? true,
       customer_name_manual:  c.customer_name_manual   ?? "",
       customer_phone_manual: c.customer_phone_manual  ?? "",
+      work_type:             c.work_type              ?? "CM",
       work_status:           c.work_status            ?? "Pending",
       approval_status:       c.approval_status        ?? "N/A",
       approval_date:         c.approval_date          ?? "",
@@ -295,6 +300,7 @@ export default function ComplaintsPage() {
         approval_status:       form.approval_status,
         approval_date:         form.approval_date || null,
         closed_date:           form.closed_date || null,
+        work_type:             form.work_type || null,
         remarks:               form.remarks || null,
         source:                "manual",
       }
@@ -360,6 +366,12 @@ export default function ComplaintsPage() {
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
+          <select value={workTypeFilter} onChange={e => setWorkTypeFilter(e.target.value)}
+            style={{ padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13 }}>
+            <option value="all">Work Type — All</option>
+            {COMPLAINT_WORK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+
           <select value={workStatusFilter} onChange={e => setWorkStatusFilter(e.target.value)}
             style={{ padding: "7px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13 }}>
             <option value="all">Work Status — All</option>
@@ -405,7 +417,7 @@ export default function ComplaintsPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f8fafc", position: "sticky", top: 0, zIndex: 2 }}>
-                  {["#","CM/PM No.","Date","Work Status","Approval","Category","Site ID","Site Name","City","KVA","CM Nature","Scope","Customer","Phone","Approval Date","Closed Date","Remarks"].map(h => (
+                  {["#","CM/PM No.","Date","Work Type","Work Status","Approval","Category","Site ID","Site Name","City","KVA","CM Nature","Scope","Customer","Phone","Approval Date","Closed Date","Remarks"].map(h => (
                     <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700, fontSize: 12, color: "#475569", borderBottom: "2px solid #e2e8f0", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -430,6 +442,7 @@ export default function ComplaintsPage() {
                       <Td style={{ color: "#9ca3af" }}>{c.id}</Td>
                       <Td style={{ fontWeight: 700, color: "#1d4ed8" }}>{c.complaint_number ?? "—"}</Td>
                       <Td>{c.complaint_date ?? "—"}</Td>
+                      <Td><span style={{ background: "#f1f5f9", padding: "2px 7px", borderRadius: 4, fontSize: 11, fontWeight: 600, color: "#374151" }}>{c.work_type ?? "—"}</span></Td>
                       <Td><WorkBadge status={c.work_status ?? "Pending"} /></Td>
                       <Td><ApprovalBadge status={c.approval_status ?? "Pending"} /></Td>
                       <Td><span style={{ background: "#f1f5f9", padding: "2px 7px", borderRadius: 4, fontSize: 11 }}>{c.cm_category ?? "—"}</span></Td>
@@ -487,12 +500,21 @@ export default function ComplaintsPage() {
               <input type="date" value={form.complaint_date} onChange={set("complaint_date")} style={inputStyle} />
             </FormRow>
 
-            {/* Category */}
-            <FormRow label="Category">
-              <select value={form.cm_category} onChange={set("cm_category")} style={inputStyle}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </FormRow>
+            {/* Work Type */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Work Type</label>
+                <select value={form.work_type} onChange={set("work_type")} style={{ ...inputStyle, marginTop: 4 }}>
+                  {COMPLAINT_WORK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Category</label>
+                <select value={form.cm_category} onChange={set("cm_category")} style={{ ...inputStyle, marginTop: 4 }}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
 
             {/* Site (optional autocomplete) */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -533,10 +555,6 @@ export default function ComplaintsPage() {
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Commissioning Date <span style={{ color: "#9ca3af", fontWeight: 400 }}>(optional)</span></label>
-                    <input type="date" value={newSiteForm.commissioning_date} onChange={e => setNewSiteForm(f => ({ ...f, commissioning_date: e.target.value }))} style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
-                  </div>
-                  <div>
                     <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Contact Person</label>
                     <input value={newSiteForm.contact_person} onChange={e => setNewSiteForm(f => ({ ...f, contact_person: e.target.value }))} style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
                   </div>
@@ -561,15 +579,15 @@ export default function ComplaintsPage() {
                         office_id: newSiteForm.office_id ? Number(newSiteForm.office_id) : null,
                         contact_person: newSiteForm.contact_person || null,
                         contact_phone: newSiteForm.contact_phone || null,
-                        commissioning_date: newSiteForm.commissioning_date || null,
-                      }
+                        }
                       const { data: inserted, error } = await supabase.from("sites").insert(payload).select().single()
                       if (error) throw error
                       // auto-pick the new site into the complaint form
                       pickSite({ ...inserted, site_location: inserted.site_location ?? "" })
                       setShowNewSite(false)
-                      setNewSiteForm({ site_id: "", name: "", site_location: "", kva: "", office_id: "", contact_person: "", contact_phone: "", commissioning_date: "" })
+                      setNewSiteForm({ site_id: "", name: "", site_location: "", kva: "", office_id: "", contact_person: "", contact_phone: "" })
                       qc.invalidateQueries({ queryKey: ["sites-slim"] })
+                      qc.invalidateQueries({ queryKey: ["sites-deputation-search"] })
                     } catch (err) { setNewSiteErr(err.message ?? String(err)) }
                     finally { setSavingNewSite(false) }
                   }}
