@@ -112,8 +112,7 @@ export default function TechSitePopup({
       background: "white",
       borderRadius: "0 0 14px 14px",
       boxShadow: "0 4px 20px rgba(0,0,0,0.22)",
-      padding: "6px 6px 8px 10px",
-      paddingTop: 32,
+      padding: "6px 36px 8px 10px",
       zIndex: 1000
     } : {
       position: "absolute",
@@ -139,25 +138,35 @@ export default function TechSitePopup({
         }}
       >✕</button>
 
-      {/* Site ID and Phone on same line */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>{site.site_id}</span>
-        <span style={{ fontSize: 12, color: "#555" }}>📞 {site.contact_phone || "N/A"}</span>
+      {/* Row 1: Site ID (left, bold) + Phone (right, fixed width, no overflow) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {site.site_id}
+        </span>
+        <span style={{ fontSize: 12, color: "#555", flex: "0 0 auto", marginLeft: "auto", whiteSpace: "nowrap" }}>
+          📞 {site.contact_phone || "N/A"}
+        </span>
       </div>
+
       {/* Customer name */}
-      <div style={{ fontSize: 12, color: "#555", marginBottom: 2 }}>
+      <div style={{ fontSize: 12, color: "#555", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {site.customers?.name || site.name || "N/A"}
       </div>
 
-      {/* Engine and Status on same line */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#555", marginBottom: 2 }}>
-        <span>⚙️ {site.engine_model || "N/A"} {site.kva ? `· ${site.kva} KVA` : ""}</span>
-        <span style={{ color: site.genset_status === "Inactive" ? "red" : "#333", fontWeight: 600 }}>{site.genset_status}</span>
+      {/* Row 2: Engine (left, truncated) + Status (right, fixed) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#555", marginBottom: 2 }}>
+        <span style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          ⚙️ {site.engine_model || "N/A"}{site.kva ? ` · ${site.kva} KVA` : ""}
+        </span>
+        <span style={{ flex: "0 0 auto", color: site.genset_status === "Inactive" ? "red" : "#2e7d32", fontWeight: 600, whiteSpace: "nowrap" }}>
+          {site.genset_status}
+        </span>
       </div>
 
-      {/* Last PM and PM Due */}
-      <div style={{ fontSize: 12, color: pmDue ? "#e65100" : "#2e7d32", fontWeight: 500, marginBottom: 2 }}>
-        Last PM: {site.last_service_date || "Never"}{pmDue && "  ⚠️ Due"}
+      {/* Row 3: Last PM (left) + Due badge (right) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginBottom: 2 }}>
+        <span style={{ color: "#555" }}>Last PM: {site.last_service_date || "Never"}</span>
+        {pmDue && <span style={{ flex: "0 0 auto", color: "#e65100", fontWeight: 600, marginLeft: "auto" }}>⚠️ Due</span>}
       </div>
 
       {/* Distance badge */}
