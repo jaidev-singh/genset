@@ -116,12 +116,6 @@ export default function ComplaintsPage() {
   const [showSiteDrop, setShowSiteDrop] = useState(false)
   const siteInputRef = useRef(null)
 
-  // new site mini-form
-  const [showNewSite, setShowNewSite] = useState(false)
-  const [newSiteForm, setNewSiteForm] = useState({ site_id: "", name: "", site_location: "", kva: "", office_id: "", contact_person: "", contact_phone: "" })
-  const [savingNewSite, setSavingNewSite] = useState(false)
-  const [newSiteErr, setNewSiteErr] = useState("")
-
   // ── queries ──────────────────────────────────────────────────────────────
   const { data: complaints = [], isLoading } = useQuery({
     queryKey: ["complaints"],
@@ -519,82 +513,10 @@ export default function ComplaintsPage() {
             {/* Site (optional autocomplete) */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>Site (optional — type to search)</label>
-              <button
-                type="button"
-                onClick={() => { setShowNewSite(s => !s); setNewSiteErr("") }}
-                style={{ fontSize: 11, padding: "2px 8px", background: showNewSite ? "#fef2f2" : "#f0fdf4", color: showNewSite ? "#dc2626" : "#15803d", border: `1px solid ${showNewSite ? "#fecaca" : "#bbf7d0"}`, borderRadius: 5, cursor: "pointer", fontWeight: 700 }}
-              >{showNewSite ? "✕ Cancel" : "+ Add New Site"}</button>
+              <Link to="/sites" target="_blank" style={{ fontSize: 11, padding: "2px 8px", background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", borderRadius: 5, fontWeight: 700, textDecoration: "none" }}>
+                + Add New Site ↗
+              </Link>
             </div>
-
-            {/* New Site mini-form */}
-            {showNewSite && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 14px", marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, fontSize: 12, color: "#15803d", marginBottom: 10 }}>🏗 New Site Details</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Site ID *</label>
-                    <input value={newSiteForm.site_id} onChange={e => setNewSiteForm(f => ({ ...f, site_id: e.target.value }))} placeholder="e.g. BLY-001" style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Site Name *</label>
-                    <input value={newSiteForm.name} onChange={e => setNewSiteForm(f => ({ ...f, name: e.target.value }))} placeholder="Site name" style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>City / District</label>
-                    <input value={newSiteForm.site_location} onChange={e => setNewSiteForm(f => ({ ...f, site_location: e.target.value }))} style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>KVA</label>
-                    <input value={newSiteForm.kva} onChange={e => setNewSiteForm(f => ({ ...f, kva: e.target.value }))} placeholder="e.g. 15" style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Office</label>
-                    <select value={newSiteForm.office_id} onChange={e => setNewSiteForm(f => ({ ...f, office_id: e.target.value }))} style={{ ...inputStyle, marginTop: 3, fontSize: 12 }}>
-                      <option value="">— select —</option>
-                      {OFFICES.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Contact Person</label>
-                    <input value={newSiteForm.contact_person} onChange={e => setNewSiteForm(f => ({ ...f, contact_person: e.target.value }))} style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>Contact Phone</label>
-                    <input value={newSiteForm.contact_phone} onChange={e => setNewSiteForm(f => ({ ...f, contact_phone: e.target.value }))} type="tel" style={{ ...inputStyle, marginTop: 3, fontSize: 12 }} />
-                  </div>
-                </div>
-                {newSiteErr && <div style={{ color: "#dc2626", fontSize: 11, marginBottom: 6 }}>{newSiteErr}</div>}
-                <button
-                  type="button"
-                  disabled={savingNewSite}
-                  onClick={async () => {
-                    if (!newSiteForm.site_id.trim() || !newSiteForm.name.trim()) { setNewSiteErr("Site ID and Name are required."); return }
-                    setSavingNewSite(true); setNewSiteErr("")
-                    try {
-                      const payload = {
-                        site_id: newSiteForm.site_id.trim(),
-                        name: newSiteForm.name.trim(),
-                        site_location: newSiteForm.site_location || null,
-                        kva: newSiteForm.kva ? Number(newSiteForm.kva) : null,
-                        office_id: newSiteForm.office_id ? Number(newSiteForm.office_id) : null,
-                        contact_person: newSiteForm.contact_person || null,
-                        contact_phone: newSiteForm.contact_phone || null,
-                        }
-                      const { data: inserted, error } = await supabase.from("sites").insert(payload).select().single()
-                      if (error) throw error
-                      // auto-pick the new site into the complaint form
-                      pickSite({ ...inserted, site_location: inserted.site_location ?? "" })
-                      setShowNewSite(false)
-                      setNewSiteForm({ site_id: "", name: "", site_location: "", kva: "", office_id: "", contact_person: "", contact_phone: "" })
-                      qc.invalidateQueries({ queryKey: ["sites-slim"] })
-                      qc.invalidateQueries({ queryKey: ["sites-deputation-search"] })
-                    } catch (err) { setNewSiteErr(err.message ?? String(err)) }
-                    finally { setSavingNewSite(false) }
-                  }}
-                  style={{ padding: "7px 16px", background: savingNewSite ? "#86efac" : "#16a34a", color: "white", border: "none", borderRadius: 6, fontWeight: 700, cursor: "pointer", fontSize: 12 }}
-                >{savingNewSite ? "Saving…" : "💾 Save New Site"}</button>
-              </div>
-            )}
 
             <div style={{ marginBottom: 14 }}>
               <div style={{ position: "relative" }}>

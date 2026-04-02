@@ -6,6 +6,7 @@ import AdminPage        from "./pages/Admin/AdminPage"
 import TechnicianPage   from "./pages/Technician"
 import DeputationPage   from "./pages/Deputation"
 import ComplaintsPage   from "./pages/Complaints/ComplaintsPage"
+import SitesPage       from "./pages/Sites/SitesPage"
 import AttendancePage   from "./pages/Attendance/AttendancePage"
 import PmPlanPage       from "./pages/PmPlan/PmPlanPage"
 import DashboardPage    from "./pages/Dashboard/DashboardPage"
@@ -52,6 +53,7 @@ const NAV_ITEMS = [
   { to: "/map",         emoji: "🗺️",  label: "Map",         desc: "Live site map with filters and location tools" },
   { to: "/admin",       emoji: "⚙️",  label: "Admin",       desc: "Site editor, PM uploads, location approvals" },
   { to: "/complaints",  emoji: "⚠️",  label: "Complaints",  desc: "Complaint & CM/PM register with status tracking" },
+  { to: "/sites",       emoji: "🏗️",  label: "Sites",       desc: "Add and manage all genset sites" },
   { to: "/deputation",  emoji: "📅",  label: "Deputation",  desc: "Create and approve daily work assignments" },
   { to: "/pm-plan",     emoji: "📋",  label: "PM Plan",     desc: "PM schedule register — add, view and track planned PMs" },
   { to: "/attendance",  emoji: "🗓️",  label: "Attendance",  desc: "Monthly attendance register for all technicians" },
@@ -120,6 +122,9 @@ function App() {
          } />
          <Route path="/complaints" element={
            <ProtectedRoute allowed={["admin"]}><ComplaintsPage /></ProtectedRoute>
+         } />
+         <Route path="/sites" element={
+           <ProtectedRoute allowed={["admin"]}><SitesPage /></ProtectedRoute>
          } />
          <Route path="/attendance" element={
            <ProtectedRoute allowed={["admin"]}><AttendancePage /></ProtectedRoute>
