@@ -207,7 +207,7 @@ export default function ComplaintsPage() {
         if (da !== db) return db.localeCompare(da)
         return b.id - a.id
       })
-  }, [complaints, search, catFilter, statusFilter, officeFilter, scopeFilter, cmNumFilter])
+  }, [complaints, search, catFilter, workStatusFilter, approvalStatusFilter, officeFilter, scopeFilter, cmNumFilter])
 
   // ── site autocomplete suggestions ─────────────────────────────────────────
   const siteSuggestions = useMemo(() => {
