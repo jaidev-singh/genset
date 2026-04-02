@@ -19,7 +19,7 @@ const OFFICES = [
 ]
 
 const WORK_STATUSES = ["Pending", "In Process", "Closed"]
-const APPROVAL_STATUSES = ["Pending", "Rejected", "Approved"]
+const APPROVAL_STATUSES = ["N/A", "Pending", "Rejected", "Approved"]
 
 const WORK_STATUS_STYLE = {
   "Pending":    { bg: "#fee2e2", color: "#dc2626" },
@@ -27,6 +27,7 @@ const WORK_STATUS_STYLE = {
   "Closed":     { bg: "#f0fdf4", color: "#15803d" },
 }
 const APPROVAL_STATUS_STYLE = {
+  "N/A":      { bg: "#f3f4f6", color: "#9ca3af" },
   "Pending":  { bg: "#fef9c3", color: "#854d0e" },
   "Rejected": { bg: "#fee2e2", color: "#dc2626" },
   "Approved": { bg: "#dbeafe", color: "#1d4ed8" },
@@ -47,7 +48,7 @@ const emptyForm = () => ({
   customer_name_manual: "",
   customer_phone_manual: "",
   work_status: "Pending",
-  approval_status: "Pending",
+  approval_status: "N/A",
   approval_date: "",
   closed_date: "",
   remarks: "",
@@ -246,7 +247,7 @@ export default function ComplaintsPage() {
       customer_name_manual:  c.customer_name_manual   ?? "",
       customer_phone_manual: c.customer_phone_manual  ?? "",
       work_status:           c.work_status            ?? "Pending",
-      approval_status:       c.approval_status        ?? "Pending",
+      approval_status:       c.approval_status        ?? "N/A",
       approval_date:         c.approval_date          ?? "",
       closed_date:           c.closed_date            ?? "",
       remarks:               c.remarks                ?? "",

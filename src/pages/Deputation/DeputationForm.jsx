@@ -507,7 +507,7 @@ export default function DeputationForm({ onSaved }) {
         disabled={saving}
         style={{ width: "100%", padding: "12px", background: saving ? "#93c5fd" : "#1a73e8", color: "white", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: saving ? "default" : "pointer" }}
       >
-        {saving ? "Savingâ€¦" : "âœ… Save Deputation"}
+        {saving ? "Saving¦" : "Save Deputation"}
       </button>
     </div>
   )
