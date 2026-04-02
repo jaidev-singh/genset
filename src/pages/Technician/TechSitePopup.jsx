@@ -4,7 +4,7 @@
 //   1. "Use My GPS"  — captures the device's live GPS co-ordinates
 //   2. "Drag / Tap"  — lets the tech position a draggable pin on the map
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { supabase } from "../../lib/supabase"
 
@@ -28,6 +28,13 @@ export default function TechSitePopup({
   const queryClient = useQueryClient()
   const [gpsLoading, setGpsLoading]   = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
+
+  // Prevent ghost-tap: disable action buttons for 450ms after popup mounts
+  const [buttonsReady, setButtonsReady] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setButtonsReady(true), 450)
+    return () => clearTimeout(t)
+  }, [])
 
   const pmDue = site.last_service_date
     ? (Date.now() - new Date(site.last_service_date)) / 86400000 > 180
@@ -97,136 +104,130 @@ export default function TechSitePopup({
 
   return (
     <div style={isMobile ? {
-      // Mobile: full-width bar pinned to the top of the map area
-      position:     "absolute",
-      top:          0, left: 0, right: 0,
-      width:        "100%",
-      maxHeight:    "44vh",
-      overflowY:    "auto",
-      background:   "white",
-      borderRadius:  "0 0 14px 14px",
-      boxShadow:    "0 4px 20px rgba(0,0,0,0.22)",
-      padding:      "8px 12px 10px",
-      paddingTop:   36,
-      zIndex:       1000
+      position: "absolute",
+      top: 0, left: 0, right: 0,
+      width: "100%",
+      maxHeight: "38vh",
+      overflowY: "auto",
+      background: "white",
+      borderRadius: "0 0 14px 14px",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.22)",
+      padding: "6px 6px 8px 10px",
+      paddingTop: 32,
+      zIndex: 1000
     } : {
-      // Desktop: floating card top-right
-      position:     "absolute",
-      top:          20,
-      right:        20,
-      width:        272,
-      background:   "white",
+      position: "absolute",
+      top: 20,
+      right: 20,
+      width: 272,
+      background: "white",
       borderRadius: 12,
-      boxShadow:    "0 4px 20px rgba(0,0,0,0.22)",
-      padding:      "16px",
-      zIndex:       1000
+      boxShadow: "0 4px 20px rgba(0,0,0,0.22)",
+      padding: "14px",
+      zIndex: 1000
     }}>
       {/* Close */}
       <button
         onClick={onClose}
         style={{
-          position: "absolute", top: 8, right: 10,
+          position: "absolute", top: 6, right: 8,
           border: "none", background: "#f1f5f9",
-          cursor: "pointer", fontSize: 13, color: "#475569",
+          cursor: "pointer", fontSize: 15, color: "#475569",
           width: 28, height: 28, borderRadius: "50%",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontWeight: 700, zIndex: 10, flexShrink: 0
         }}
       >✕</button>
 
-      {/* Site identity */}
-      <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>{site.site_id}</h3>
-      <p style={{ margin: "2px 0", fontSize: 13, color: "#555" }}>
-        <b>Customer:</b> {site.customers?.name || site.name || "N/A"}
-      </p>
-      <p style={{ margin: "2px 0", fontSize: 13, color: "#555" }}>
-        <b>Phone:</b> {site.contact_phone || "N/A"}
-      </p>
+      {/* Site ID and Phone on same line */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>{site.site_id}</span>
+        <span style={{ fontSize: 12, color: "#555" }}>📞 {site.contact_phone || "N/A"}</span>
+      </div>
+      {/* Customer name */}
+      <div style={{ fontSize: 12, color: "#555", marginBottom: 2 }}>
+        {site.customers?.name || site.name || "N/A"}
+      </div>
+
+      {/* Engine and Status on same line */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#555", marginBottom: 2 }}>
+        <span>⚙️ {site.engine_model || "N/A"} {site.kva ? `· ${site.kva} KVA` : ""}</span>
+        <span style={{ color: site.genset_status === "Inactive" ? "red" : "#333", fontWeight: 600 }}>{site.genset_status}</span>
+      </div>
+
+      {/* Last PM and PM Due */}
+      <div style={{ fontSize: 12, color: pmDue ? "#e65100" : "#2e7d32", fontWeight: 500, marginBottom: 2 }}>
+        Last PM: {site.last_service_date || "Never"}{pmDue && "  ⚠️ Due"}
+      </div>
 
       {/* Distance badge */}
       {distanceMeters != null && (
         <div style={{
-          marginTop: 8, padding: "5px 10px",
+          margin: "6px 0 2px 0", padding: "3px 8px",
           background: "#e8f4fd", borderRadius: 6,
-          fontSize: 13, color: "#1a73e8", fontWeight: 500
+          fontSize: 12, color: "#1a73e8", fontWeight: 500,
+          display: "inline-block"
         }}>
           📍 {formatDist(distanceMeters)} from you
         </div>
       )}
 
-      <hr style={{ margin: "10px 0", borderColor: "#f0f0f0" }} />
-
-      {/* Engine / status */}
-      <p style={{ margin: "2px 0", fontSize: 13, color: "#555" }}>
-        <b>Engine:</b> {site.engine_model || "N/A"} — {site.kva || "N/A"} KVA
-      </p>
-      <p style={{ margin: "2px 0", fontSize: 13, color: "#555" }}>
-        <b>Status:</b>{" "}
-        <span style={{ color: site.genset_status === "Inactive" ? "red" : "#333" }}>
-          {site.genset_status}
-        </span>
-      </p>
-      <p style={{ margin: "2px 0", fontSize: 13, color: "#555" }}>
-        <b>Last PM:</b>{" "}
-        <span style={{ color: pmDue ? "#e65100" : "#2e7d32", fontWeight: 500 }}>
-          {site.last_service_date || "Never"}
-          {pmDue && "  ⚠️ Due"}
-        </span>
-      </p>
-
       {/* Pending badge */}
       {site.new_latitude && (
         <div style={{
-          marginTop: 8, padding: "5px 8px",
-          background: "#fff3cd", borderRadius: 6, fontSize: 12, color: "#856404"
+          margin: "4px 0 2px 0", padding: "3px 7px",
+          background: "#fff3cd", borderRadius: 6, fontSize: 11, color: "#856404",
+          display: "inline-block"
         }}>
           ⏳ Location update pending approval
         </div>
       )}
 
-      <hr style={{ margin: "10px 0", borderColor: "#f0f0f0" }} />
+      <hr style={{ margin: "8px 0 6px 0", borderColor: "#f0f0f0" }} />
 
       {/* ── Normal mode: two action buttons ── */}
       {!isDragMode ? (
-        <>
+        <div style={{ display: "flex", gap: 6, marginBottom: 2 }}>
           <button
             onClick={handleSendGPS}
-            disabled={gpsLoading}
+            disabled={gpsLoading || !buttonsReady}
             style={{
-              width: "100%", padding: "9px", marginBottom: 7,
-              background: gpsLoading ? "#90caf9" : "#1a73e8",
+              flex: 1,
+              padding: "8px 0",
+              background: (gpsLoading || !buttonsReady) ? "#90caf9" : "#1a73e8",
               color: "white", border: "none", borderRadius: 7,
-              cursor: gpsLoading ? "default" : "pointer", fontSize: 13, fontWeight: 600
+              cursor: (gpsLoading || !buttonsReady) ? "default" : "pointer", fontSize: 12, fontWeight: 600
             }}
           >
-            {gpsLoading ? "Getting GPS…" : "📍 Use My Current GPS"}
+            {gpsLoading ? "Getting GPS…" : "📍 Use My GPS"}
           </button>
-
           <button
             onClick={onStartDragMode}
+            disabled={!buttonsReady}
             style={{
-              width: "100%", padding: "9px",
-              background: "#6f42c1", color: "white",
+              flex: 1,
+              padding: "8px 0",
+              background: !buttonsReady ? "#c4a8e8" : "#6f42c1", color: "white",
               border: "none", borderRadius: 7,
-              cursor: "pointer", fontSize: 13, fontWeight: 600
+              cursor: !buttonsReady ? "default" : "pointer", fontSize: 12, fontWeight: 600
             }}
           >
-            🎯 Drag / Tap on Map
+            🎯 Drag / Tap
           </button>
-        </>
+        </div>
       ) : (
         /* ── Drag-pin mode: confirm / cancel ── */
         <>
-          <p style={{ fontSize: 12, color: "#555", textAlign: "center", margin: "0 0 8px" }}>
+          <p style={{ fontSize: 11, color: "#555", textAlign: "center", margin: "0 0 6px" }}>
             Drag the purple pin <b>or</b> tap anywhere on the map to place the new location.
           </p>
 
           {dragPinPos ? (
-            <p style={{ fontSize: 11, color: "#888", textAlign: "center", margin: "0 0 8px" }}>
+            <p style={{ fontSize: 10, color: "#888", textAlign: "center", margin: "0 0 6px" }}>
               {dragPinPos.lat.toFixed(6)}, {dragPinPos.lng.toFixed(6)}
             </p>
           ) : (
-            <p style={{ fontSize: 11, color: "#aaa", textAlign: "center", margin: "0 0 8px" }}>
+            <p style={{ fontSize: 10, color: "#aaa", textAlign: "center", margin: "0 0 6px" }}>
               Tap the map to place the pin…
             </p>
           )}
@@ -235,23 +236,23 @@ export default function TechSitePopup({
             onClick={handleConfirmPin}
             disabled={!dragPinPos || saveLoading}
             style={{
-              width: "100%", padding: "9px", marginBottom: 7,
+              width: "100%", padding: "8px 0", marginBottom: 5,
               background: dragPinPos ? "#28a745" : "#ccc",
               color: "white", border: "none", borderRadius: 7,
               cursor: dragPinPos ? "pointer" : "default",
-              fontSize: 13, fontWeight: 600
+              fontSize: 12, fontWeight: 600
             }}
           >
-            {saveLoading ? "Saving…" : "✅ Confirm This Location"}
+            {saveLoading ? "Saving…" : "✅ Confirm Location"}
           </button>
 
           <button
             onClick={onCancelDragMode}
             style={{
-              width: "100%", padding: "7px",
+              width: "100%", padding: "6px 0",
               background: "transparent", color: "#888",
               border: "1px solid #ddd", borderRadius: 7,
-              cursor: "pointer", fontSize: 12
+              cursor: "pointer", fontSize: 11
             }}
           >
             Cancel

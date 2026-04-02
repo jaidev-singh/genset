@@ -483,6 +483,7 @@ export default function TechnicianView() {
           onClick={handleMapClick}
           options={{
             cursor: dragPinMode ? "crosshair" : undefined,
+            gestureHandling: "greedy",
             mapTypeControlOptions: {
               position: window.google.maps.ControlPosition.BOTTOM_LEFT
             },
