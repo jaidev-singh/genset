@@ -112,7 +112,8 @@ export default function TechSitePopup({
       background: "white",
       borderRadius: "0 0 14px 14px",
       boxShadow: "0 4px 20px rgba(0,0,0,0.22)",
-      padding: "6px 42px 8px 10px",
+      padding: "6px 8px 8px 10px",
+      boxSizing: "border-box",
       zIndex: 1000
     } : {
       position: "absolute",
@@ -126,23 +127,24 @@ export default function TechSitePopup({
       zIndex: 1000
     }}>
 
-      {/* Close — absolute, floats in the 42px right-padding zone */}
-      <button
-        onClick={onClose}
-        style={{
-          position: "absolute", top: 6, right: 8,
-          border: "none", background: "#f1f5f9",
-          cursor: "pointer", fontSize: 13, color: "#475569",
-          width: 26, height: 26, borderRadius: "50%",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontWeight: 700, padding: 0
-        }}
-      >✕</button>
-
-      {/* Row 1: Site ID (short+bold) · Phone (short) — both fit easily */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: "nowrap" }}>{site.site_id}</span>
-        <span style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap" }}>📞 {site.contact_phone || "N/A"}</span>
+      {/* Row 1: Site ID · Phone · ✕ — all flex, close button is the last item */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+          {site.site_id}
+        </span>
+        <span style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap", flex: "0 0 auto" }}>
+          📞 {site.contact_phone || "N/A"}
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            flex: "0 0 24px", width: 24, height: 24,
+            border: "none", background: "#f1f5f9",
+            cursor: "pointer", fontSize: 12, color: "#475569",
+            borderRadius: "50%", display: "flex", alignItems: "center",
+            justifyContent: "center", fontWeight: 700, padding: 0, marginLeft: 2
+          }}
+        >✕</button>
       </div>
 
       {/* Row 2: Customer name — can truncate */}
@@ -155,12 +157,12 @@ export default function TechSitePopup({
         ⚙️ {site.engine_model || "N/A"}{site.kva ? ` · ${site.kva} KVA` : ""}
       </div>
 
-      {/* Row 4: Last PM (short) · Status (short) — both fit easily */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, marginBottom: 2 }}>
-        <span style={{ color: pmDue ? "#e65100" : "#555", whiteSpace: "nowrap" }}>
+      {/* Row 4: Last PM · Status — both short, flex */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, marginBottom: 2 }}>
+        <span style={{ flex: "1 1 auto", color: pmDue ? "#e65100" : "#555", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           🕐 {site.last_service_date || "Never"}{pmDue ? " ⚠️" : ""}
         </span>
-        <span style={{ fontWeight: 600, whiteSpace: "nowrap", color: site.genset_status === "Inactive" ? "red" : "#2e7d32" }}>
+        <span style={{ flex: "0 0 auto", fontWeight: 600, whiteSpace: "nowrap", color: site.genset_status === "Inactive" ? "red" : "#2e7d32" }}>
           {site.genset_status}
         </span>
       </div>
