@@ -307,6 +307,24 @@ export default function ComplaintsPage() {
         if (error) throw error
       }
 
+      // ── Sync corrections back to the sites table ──────────────────────────
+      // If a site is linked AND manual fields were filled, update sites table
+      // so corrected data shows everywhere (deputation, map, etc.)
+      if (form.site_id) {
+        const siteUpdate = {}
+        if (form.site_name_manual?.trim()) siteUpdate.name          = form.site_name_manual.trim()
+        if (form.city_manual?.trim())      siteUpdate.site_location = form.city_manual.trim()
+        if (form.kva_manual?.trim())       siteUpdate.kva           = Number(form.kva_manual) || null
+        if (form.customer_name_manual?.trim()) siteUpdate.contact_person = form.customer_name_manual.trim()
+        if (form.customer_phone_manual?.trim()) siteUpdate.contact_phone = form.customer_phone_manual.trim()
+        if (Object.keys(siteUpdate).length > 0) {
+          await supabase.from("sites").update(siteUpdate).eq("id", form.site_id)
+          qc.invalidateQueries({ queryKey: ["sites-slim"] })
+          qc.invalidateQueries({ queryKey: ["sites-deputation-search"] })
+          qc.invalidateQueries({ queryKey: ["sites-all"] })
+        }
+      }
+
       qc.invalidateQueries({ queryKey: ["complaints"] })
       setPanel(null)
     } catch (err) {

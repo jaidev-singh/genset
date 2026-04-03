@@ -33,16 +33,16 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const EVR_TYPES   = new Set(["PM Service","Top Up","CM","Commissioning"])
 
 // Row definitions for the monthly report table.
-// custCat: customer.category value to filter PM work by. null = any customer.
+// cmCat: complaints.cm_category value to filter PM/CM work by. null = any.
 // planNA:  plan column shows "N/A" (e.g. Commissioning is demand-driven)
 // manual:  done count is entered manually (Overhauling has no deputation work type)
 const ROWS = [
-  { key:"telecom_pm",   label:"Telecom PM",   workTypes:["PM Service","Top Up"], custCat:"Telecom",   planNA:false, manual:false },
-  { key:"cm",           label:"CM",            workTypes:["CM"],                  custCat:null,        planNA:false, manual:false },
-  { key:"overhauling",  label:"Overhauling",   workTypes:[],                      custCat:null,        planNA:false, manual:true  },
-  { key:"retail_pm",    label:"Retail PM",     workTypes:["PM Service","Top Up"], custCat:"Retail",    planNA:false, manual:false },
-  { key:"corporate_pm", label:"Corporate PM",  workTypes:["PM Service","Top Up"], custCat:"Corporate", planNA:false, manual:false },
-  { key:"commissioning",label:"Commissioning", workTypes:["Commissioning"],       custCat:null,        planNA:true,  manual:false },
+  { key:"telecom_pm",   label:"Telecom PM",   workTypes:["PM Service","Top Up"], cmCat:"Telecom",   planNA:false, manual:false },
+  { key:"cm",           label:"CM",            workTypes:["CM"],                  cmCat:null,        planNA:false, manual:false },
+  { key:"overhauling",  label:"Overhauling",   workTypes:[],                      cmCat:null,        planNA:false, manual:true  },
+  { key:"retail_pm",    label:"Retail PM",     workTypes:["PM Service","Top Up"], cmCat:"Retail",    planNA:false, manual:false },
+  { key:"corporate_pm", label:"Corporate PM",  workTypes:["PM Service","Top Up"], cmCat:"Corporate", planNA:false, manual:false },
+  { key:"commissioning",label:"Commissioning", workTypes:["Commissioning"],       cmCat:null,        planNA:true,  manual:false },
 ]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -83,13 +83,13 @@ export default function DashboardPage() {
     staleTime: 0,
   })
 
-  // Completed deputation this month — includes site→customer_id for category mapping
+  // Completed deputation this month — includes linked complaint cm_category for row mapping
   const { data: monthDeps=[] } = useQuery({
     queryKey: ["dash-month-deps", year, month],
     queryFn: async () => {
       const {data,error} = await supabase
         .from("deputation")
-        .select("id,work_type,sites(id,customer_id)")
+        .select("id,work_type,complaints(cm_category)")
         .eq("status","Completed")
         .gte("deputation_date", monthStart)
         .lte("deputation_date", monthEnd)
@@ -99,17 +99,10 @@ export default function DashboardPage() {
     staleTime: 60000,
   })
 
-  // Customers with category — gracefully returns [] if column doesn't exist yet
-  const { data: customers=[] } = useQuery({
-    queryKey: ["customers-cat"],
-    queryFn: async () => {
-      try {
-        const {data,error} = await supabase.from("customers").select("id,name,category")
-        return error ? [] : (data??[])
-      } catch { return [] }
-    },
-    staleTime: 300000,
-  })
+  // Customers with category — no longer needed (using cm_category from complaints)
+  // kept as empty to avoid breaking references
+  const customers = []
+  const hasCatData = true
 
   // Manual plan targets stored per month
   const { data: targetsRaw=[] } = useQuery({
@@ -141,9 +134,7 @@ export default function DashboardPage() {
 
   // ── derived ────────────────────────────────────────────────────────────────
 
-  const custMap = useMemo(()=>{
-    const m={}; customers.forEach(c=>{ m[c.id]=c }); return m
-  },[customers])
+  const custMap = {}
 
   const tgtMap = useMemo(()=>{
     const m={}; targetsRaw.forEach(t=>{ m[t.category]=t }); return m
@@ -171,9 +162,8 @@ export default function DashboardPage() {
       }
       c[row.key] = monthDeps.filter(d=>{
         if(!row.workTypes.includes(d.work_type)) return false
-        if(row.custCat){
-          const cust = custMap[d.sites?.customer_id]
-          return cust?.category===row.custCat
+        if(row.cmCat){
+          return d.complaints?.cm_category === row.cmCat
         }
         return true
       }).length
@@ -183,8 +173,6 @@ export default function DashboardPage() {
 
   const totalPlan = ROWS.filter(r=>!r.planNA).reduce((s,r)=>s+(tgtMap[r.key]?.target??0),0)
   const totalDone = ROWS.reduce((s,r)=>s+(doneCounts[r.key]??0),0)
-
-  const hasCatData = customers.length>0 && customers.some(c=>c.category)
 
   // ── save target (or manual done for overhauling) ──────────────────────────
 
@@ -370,15 +358,7 @@ export default function DashboardPage() {
           <div style={{marginTop:12,fontSize:11,color:"#9ca3af",lineHeight:1.6}}>
             Attendance P-days till {isCurrentMonth?"today":MONTH_NAMES[month-1]}: <b style={{color:"#374151"}}>{attendCount}</b>
             &nbsp;|&nbsp;EVR units: <b style={{color:"#374151"}}>{evrUnits}</b> (PM Service + Top Up + CM + Commissioning)
-            {!hasCatData && (
-              <span style={{color:"#f59e0b",marginLeft:8}}>
-                ⚠ Customer categories not set — Telecom/Retail/Corporate rows will show 0 until you run:
-                <code style={{display:"block",background:"#fef9c3",padding:"4px 8px",borderRadius:4,marginTop:4,color:"#92400e",fontSize:10}}>
-                  ALTER TABLE customers ADD COLUMN IF NOT EXISTS category text;
-                  {"\n"}-- then: UPDATE customers SET category='Telecom' WHERE name ILIKE '%indus%' OR name ILIKE '%reliance%';
-                </code>
-              </span>
-            )}
+            <span style={{display:"block",marginTop:4}}>Telecom/Retail/Corporate PM counts use the <b>cm_category</b> of the linked complaint in deputation.</span>
           </div>
         </Card>
 
