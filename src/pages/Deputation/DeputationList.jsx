@@ -189,7 +189,7 @@ export default function DeputationList() {
       if (job.complaints?.id) {
         await supabase
           .from("complaints")
-          .update({ status: "Closed", closed_date: doneDate })
+          .update({ work_status: "Closed", closed_date: doneDate })
           .eq("id", job.complaints.id)
       }
 

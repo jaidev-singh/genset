@@ -10,7 +10,7 @@ const TABS = [
 ]
 
 export default function DeputationPage() {
-  const [tab, setTab] = useState("form")
+  const [tab, setTab] = useState("list")
 
   const handleSaved = () => setTab("list")
 
