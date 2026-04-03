@@ -254,6 +254,18 @@ export default function DeputationList() {
     qc.invalidateQueries({ queryKey: ["pm-plans-map"] })
   }
 
+  const handleUndoDone = async (job) => {
+    if (!window.confirm(`Undo "Done" for ${job.work_type}${job.sites?.site_id ? " at " + job.sites.site_id : ""}?\nThis reverts it back to Planned.`)) return
+    const { error } = await supabase.from("deputation").update({ status: "Planned" }).eq("id", job.id)
+    if (error) { alert("Error: " + error.message); return }
+    // Revert linked complaint back to In Process
+    if (job.complaints?.id) {
+      await supabase.from("complaints").update({ work_status: "In Process", closed_date: null }).eq("id", job.complaints.id)
+    }
+    qc.invalidateQueries({ queryKey: ["deputation-list"] })
+    qc.invalidateQueries({ queryKey: ["complaints"] })
+  }
+
   // ── render ────────────────────────────────────────────────────────────────
 
   const completedCount = jobs.filter(j => j.status === "Completed").length
@@ -387,6 +399,15 @@ export default function DeputationList() {
                         ✕
                       </button>
                     </>
+                  )}
+                  {job.status === "Completed" && (
+                    <button
+                      onClick={() => handleUndoDone(job)}
+                      style={{ padding: "5px 10px", background: "#fef9c3", color: "#854d0e", border: "1px solid #fde68a", borderRadius: 6, cursor: "pointer", fontSize: 11, fontWeight: 600 }}
+                      title="Undo — revert to Planned"
+                    >
+                      ↩ Undo
+                    </button>
                   )}
                   <button
                     onClick={() => handleDelete(job)}
