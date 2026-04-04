@@ -168,7 +168,7 @@ export default function DeputationList() {
       else if (PM_TYPES_LINKED_TO_PLAN.has(job.work_type) && job.sites?.id) {
         const resolvedPmNum = pmReqNum.trim() || `DEP-${job.id}`
         const d = new Date(doneDate)
-        const { error: e4 } = await supabase
+        const { data: newPlan, error: e4 } = await supabase
           .from("pm_plan")
           .insert({
             pm_request_number: resolvedPmNum,
@@ -182,7 +182,13 @@ export default function DeputationList() {
             year:              d.getFullYear(),
             assigned_to:       job.technicians?.id ?? null,
           })
-        if (e4 && !e4.message?.includes("duplicate")) throw e4  // ignore duplicate pm number
+          .select("id")
+          .single()
+        if (e4 && !e4.message?.includes("duplicate")) throw e4
+        // Link the new pm_plan back to this deputation so the number stays live
+        if (newPlan?.id) {
+          await supabase.from("deputation").update({ pm_plan_id: newPlan.id }).eq("id", job.id)
+        }
       }
 
       // 5. Auto-close linked complaint
@@ -209,30 +215,60 @@ export default function DeputationList() {
   const openEdit = job => {
     setEditModal({ job })
     setEditForm({
-      deputation_date: job.deputation_date,
-      technician_id:   job.technicians?.id ?? "",
-      work_type:       job.work_type,
-      notes:           job.notes ?? "",
-      other_task_desc: job.other_task_desc ?? "",
+      deputation_date:      job.deputation_date,
+      technician_id:        job.technicians?.id ?? "",
+      work_type:            job.work_type,
+      notes:                job.notes ?? "",
+      other_task_desc:      job.other_task_desc ?? "",
+      ref_number:           job.ref_number ?? "",
+      pm_request_number:    job.pm_plan?.pm_request_number ?? "",
+      complaint_number:     job.complaints?.complaint_number ?? "",
     })
   }
 
   const handleEditSave = async () => {
     setEditSaving(true)
-    const { error } = await supabase
-      .from("deputation")
-      .update({
-        deputation_date: editForm.deputation_date,
-        technician_id:   editForm.technician_id || null,
-        work_type:       editForm.work_type,
-        notes:           editForm.notes || null,
-        other_task_desc: editForm.work_type === "Other" ? editForm.other_task_desc : null,
-      })
-      .eq("id", editModal.job.id)
-    setEditSaving(false)
-    if (error) { alert("Save failed: " + error.message); return }
-    qc.invalidateQueries({ queryKey: ["deputation-list"] })
-    setEditModal(null)
+    try {
+      const { error } = await supabase
+        .from("deputation")
+        .update({
+          deputation_date: editForm.deputation_date,
+          technician_id:   editForm.technician_id || null,
+          work_type:       editForm.work_type,
+          notes:           editForm.notes || null,
+          other_task_desc: editForm.work_type === "Other" ? editForm.other_task_desc : null,
+          ref_number:      editForm.ref_number || null,
+        })
+        .eq("id", editModal.job.id)
+      if (error) throw error
+
+      // Update PM plan number in the linked pm_plan row
+      if (editModal.job.pm_plan?.id) {
+        const { error: epm } = await supabase
+          .from("pm_plan")
+          .update({ pm_request_number: editForm.pm_request_number })
+          .eq("id", editModal.job.pm_plan.id)
+        if (epm) throw epm
+      }
+
+      // Update CM number in the linked complaints row
+      if (editModal.job.complaints?.id) {
+        const { error: ecm } = await supabase
+          .from("complaints")
+          .update({ complaint_number: editForm.complaint_number })
+          .eq("id", editModal.job.complaints.id)
+        if (ecm) throw ecm
+      }
+
+      qc.invalidateQueries({ queryKey: ["deputation-list"] })
+      qc.invalidateQueries({ queryKey: ["pm-plans-map"] })
+      qc.invalidateQueries({ queryKey: ["complaints"] })
+      setEditModal(null)
+    } catch (err) {
+      alert("Save failed: " + err.message)
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   const handleDelete = async (job) => {
@@ -542,6 +578,35 @@ export default function DeputationList() {
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Description</label>
                 <input value={editForm.other_task_desc}
                   onChange={e => setEditForm(f => ({ ...f, other_task_desc: e.target.value }))}
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }}
+                />
+              </>
+            )}
+
+            {editModal.job.pm_plan ? (
+              <>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>PM Number</label>
+                <input value={editForm.pm_request_number}
+                  onChange={e => setEditForm(f => ({ ...f, pm_request_number: e.target.value }))}
+                  placeholder="e.g. PM-2025-001"
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }}
+                />
+              </>
+            ) : editModal.job.complaints ? (
+              <>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>CM Number</label>
+                <input value={editForm.complaint_number}
+                  onChange={e => setEditForm(f => ({ ...f, complaint_number: e.target.value }))}
+                  placeholder="e.g. CM-2025-001"
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }}
+                />
+              </>
+            ) : (
+              <>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Ref Number</label>
+                <input value={editForm.ref_number}
+                  onChange={e => setEditForm(f => ({ ...f, ref_number: e.target.value }))}
+                  placeholder="Reference number"
                   style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, marginBottom: 12, boxSizing: "border-box" }}
                 />
               </>
