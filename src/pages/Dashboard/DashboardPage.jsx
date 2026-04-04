@@ -74,7 +74,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const {data,error} = await supabase
         .from("deputation")
-        .select("id,work_type,status,sites(site_id,name),technicians(name)")
+        .select("id,work_type,status,ref_number,sites(site_id,name),technicians(name),pm_plan(pm_request_number),complaints(complaint_number)")
         .eq("deputation_date", today)
         .order("technician_id")
       if(error) throw error
@@ -228,7 +228,7 @@ export default function DashboardPage() {
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <thead>
                     <tr style={{borderBottom:"2px solid #f3f4f6"}}>
-                      {["Technician","Site ID","Site Name","Work Type","Status"].map(h=>(
+                      {["Technician","Site ID","Site Name","Work Type","PM/CM No.","Status"].map(h=>(
                         <th key={h} style={{padding:"5px 10px",textAlign:"left",color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"}}>{h}</th>
                       ))}
                     </tr>
@@ -242,6 +242,7 @@ export default function DashboardPage() {
                           <td style={{padding:"6px 10px",fontFamily:"monospace"}}>{job.sites?.site_id??<span style={{color:"#9ca3af"}}>—</span>}</td>
                           <td style={{padding:"6px 10px",color:"#374151"}}>{job.sites?.name??"office/other"}</td>
                           <td style={{padding:"6px 10px"}}>{job.work_type}</td>
+                          <td style={{padding:"6px 10px",fontFamily:"monospace",color:"#1d4ed8"}}>{job.pm_plan?.pm_request_number??job.complaints?.complaint_number??job.ref_number??<span style={{color:"#d1d5db"}}>—</span>}</td>
                           <td style={{padding:"6px 10px"}}><span style={{color:sc,fontWeight:600}}>{job.status}</span></td>
                         </tr>
                       )

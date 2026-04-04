@@ -459,8 +459,8 @@ export default function ComplaintsPage() {
                       <Td><ApprovalBadge status={c.approval_status ?? "Pending"} /></Td>
                       <Td><span style={{ background: "#f1f5f9", padding: "2px 7px", borderRadius: 4, fontSize: 11 }}>{c.cm_category ?? "—"}</span></Td>
                       <Td style={{ fontWeight: 600, color: "#374151" }}>{site?.site_id ?? "—"}</Td>
-                      <Td>{site?.name ?? c.site_name_manual ?? "—"}</Td>
-                      <Td>{c.city_manual ?? site?.site_location ?? "—"}</Td>
+                      <Td title={site?.name ?? c.site_name_manual ?? ""}>{((v => v && v.length > 22 ? v.slice(0,22) + "…" : v)(site?.name ?? c.site_name_manual)) ?? "—"}</Td>
+                      <Td title={c.city_manual ?? site?.site_location ?? ""}>{((v => v && v.length > 22 ? v.slice(0,22) + "…" : v)(c.city_manual ?? site?.site_location)) ?? "—"}</Td>
                       <Td>{c.kva_manual ?? site?.kva ?? "—"}</Td>
                       <Td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{c.cm_nature ?? "—"}</Td>
                       <Td>
