@@ -8,6 +8,7 @@ import { useState, useMemo, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { supabase } from "../../lib/supabase"
+import * as XLSX from "xlsx"
 
 // ── constants ──────────────────────────────────────────────────────────────
 const CATEGORIES = ["Telecom", "Corporate", "Retail", "Other"]
@@ -342,6 +343,41 @@ export default function ComplaintsPage() {
     setPanel(null)
   }
 
+  // ── excel export ────────────────────────────────────────────────────
+  const exportExcel = () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const headers = ["#", "CM/PM No.", "Date", "Work Type", "Work Status", "Approval", "Category",
+      "Site ID", "Site Name", "City", "KVA", "CM Nature", "Scope",
+      "Customer", "Phone", "Approval Date", "Closed Date", "Remarks"]
+    const data = [headers, ...rows.map((c, i) => {
+      const site = c.sites
+      return [
+        i + 1,
+        c.complaint_number ?? "",
+        c.complaint_date ?? "",
+        c.work_type ?? "",
+        c.work_status ?? "",
+        c.approval_status ?? "",
+        c.cm_category ?? "",
+        site?.site_id ?? "",
+        site?.name ?? c.site_name_manual ?? "",
+        c.city_manual ?? site?.site_location ?? "",
+        c.kva_manual ?? site?.kva ?? "",
+        c.cm_nature ?? "",
+        c.is_in_scope ? "In" : "Out",
+        c.customer_name_manual ?? "",
+        c.customer_phone_manual ?? "",
+        c.approval_date ?? "",
+        c.closed_date ?? "",
+        c.remarks ?? "",
+      ]
+    })]
+    const ws = XLSX.utils.aoa_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Complaints")
+    XLSX.writeFile(wb, `complaints-${today}.xlsx`)
+  }
+
   // ── resolved counts for header ────────────────────────────────────────────
   const openCount     = complaints.filter(c => c.work_status !== "Closed").length
   const resolvedCount = complaints.filter(c => c.work_status === "Closed").length
@@ -416,8 +452,12 @@ export default function ComplaintsPage() {
             <option value="blank">CM/PM No. blank</option>
           </select>
 
-          <span style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280", display: "flex", alignItems: "center", gap: 10 }}>
             {rows.length} shown &nbsp;·&nbsp; {openCount} open &nbsp;·&nbsp; {resolvedCount} resolved
+            <button onClick={exportExcel} disabled={rows.length === 0}
+              style={{ padding: "5px 12px", background: "#f0fdf4", color: "#15803d", border: "1px solid #86efac", borderRadius: 6, cursor: rows.length === 0 ? "default" : "pointer", fontSize: 12, fontWeight: 600 }}>
+              ⬇ Excel
+            </button>
           </span>
         </div>
 

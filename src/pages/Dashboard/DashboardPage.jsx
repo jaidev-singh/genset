@@ -26,6 +26,7 @@ import { useState, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { supabase } from "../../lib/supabase"
+import * as XLSX from "xlsx"
 
 // ── constants ────────────────────────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const {data,error} = await supabase
         .from("deputation")
-        .select("id,work_type,complaints(cm_category)")
+        .select("id,work_type,complaints(cm_category),sites(customers(category))")
         .eq("status","Completed")
         .gte("deputation_date", monthStart)
         .lte("deputation_date", monthEnd)
@@ -163,7 +164,9 @@ export default function DashboardPage() {
       c[row.key] = monthDeps.filter(d=>{
         if(!row.workTypes.includes(d.work_type)) return false
         if(row.cmCat){
-          return d.complaints?.cm_category === row.cmCat
+          // CM jobs carry category via linked complaint; PM jobs carry it via site→customer
+          const cat = d.complaints?.cm_category ?? d.sites?.customers?.category
+          return cat === row.cmCat
         }
         return true
       }).length

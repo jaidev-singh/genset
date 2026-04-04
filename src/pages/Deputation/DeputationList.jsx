@@ -11,6 +11,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "../../lib/supabase"
+import * as XLSX from "xlsx"
 
 const WORK_TYPES = [
   "PM Service", "Top Up", "PM Visit",
@@ -287,7 +288,7 @@ export default function DeputationList() {
       await supabase.from("pm_plan").update({ status: "Pending", assigned_to: null }).eq("id", job.pm_plan.id)
     }
     qc.invalidateQueries({ queryKey: ["deputation-list"] })
-    qc.invalidateQueries({ queryKey: ["pm-plans-map"] })
+    qc.invalidateQueries({ queryKey: ["complaints"] })
   }
 
   const handleUndoDone = async (job) => {
@@ -300,6 +301,26 @@ export default function DeputationList() {
     }
     qc.invalidateQueries({ queryKey: ["deputation-list"] })
     qc.invalidateQueries({ queryKey: ["complaints"] })
+  }
+
+  // ── excel export ──────────────────────────────────────────────────────────
+
+  const exportExcel = () => {
+    const headers = ["Date", "Technician", "Site ID", "Site Name", "Work Type", "PM/CM No.", "Status", "Notes"]
+    const data = [headers, ...jobs.map(j => [
+      j.deputation_date,
+      j.technicians?.name ?? "",
+      j.sites?.site_id ?? "",
+      j.sites?.name ?? "",
+      j.work_type,
+      j.pm_plan?.pm_request_number ?? j.complaints?.complaint_number ?? j.ref_number ?? "",
+      j.status,
+      j.notes ?? "",
+    ])]
+    const ws = XLSX.utils.aoa_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Deputation")
+    XLSX.writeFile(wb, `deputation-${date}.xlsx`)
   }
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -334,9 +355,15 @@ export default function DeputationList() {
             {completedCount} / {totalCount} completed
           </span>
         )}
-        <button onClick={() => refetch()} style={{ marginLeft: "auto", padding: "6px 10px", background: "#f1f5f9", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>
-          🔄 Refresh
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button onClick={exportExcel} disabled={jobs.length === 0}
+            style={{ padding: "6px 12px", background: "#f0fdf4", color: "#15803d", border: "1px solid #86efac", borderRadius: 6, cursor: jobs.length === 0 ? "default" : "pointer", fontSize: 12, fontWeight: 600 }}>
+            ⬇ Excel
+          </button>
+          <button onClick={() => refetch()} style={{ padding: "6px 10px", background: "#f1f5f9", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer", fontSize: 12 }}>
+            🔄 Refresh
+          </button>
+        </div>
       </div>
 
       {isLoading && <div style={{ color: "#6b7280", fontSize: 14 }}>Loading…</div>}

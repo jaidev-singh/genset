@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { supabase } from "../../lib/supabase"
 import PmPlanUpload from "./PmPlanUpload"
+import * as XLSX from "xlsx"
 
 // ── constants ───────────────────────────────────────────────────────────────
 const SERVICE_TYPES = ["PM Service", "Top Up", "PM Visit"]
@@ -175,7 +176,33 @@ export default function PmPlanPage() {
     if (filterMonth === 12) { setFilterMonth(1); setFilterYear(y => y + 1) }
     else setFilterMonth(m => m + 1)
   }
-
+  // ── excel export ─────────────────────────────────────────────────────────
+  const exportExcel = () => {
+    const headers = ["#", "PM No.", "Date", "Status", "Site ID", "Site Name", "District",
+      "KVA", "Type", "Plan", "AMC", "Customer", "Phone", "Technician", "Done Date", "Remarks"]
+    const data = [headers, ...filtered.map((p, i) => [
+      i + 1,
+      p.pm_request_number ?? "",
+      p.planned_date ?? "",
+      p.status,
+      p.sites?.site_id ?? "",
+      p.sites?.name ?? "",
+      p.sites?.site_location ?? "",
+      p.sites?.kva ?? "",
+      p.service_type ?? "",
+      p.plan_type ?? "",
+      p.amc_type ?? "",
+      p.sites?.contact_person ?? "",
+      p.sites?.contact_phone ?? "",
+      p.technicians?.name ?? "",
+      p.done_date ?? "",
+      p.remarks ?? "",
+    ])]
+    const ws = XLSX.utils.aoa_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "PM Plan")
+    XLSX.writeFile(wb, `pm-plan-${MONTHS[filterMonth-1]}-${filterYear}.xlsx`)
+  }
   // ── open panel ──────────────────────────────────────────────────────────
   const openNew = () => {
     setForm(EMPTY_FORM)
@@ -294,6 +321,10 @@ export default function PmPlanPage() {
           <span style={{ fontSize: 12, background: "#eff6ff", color: "#1d4ed8", padding: "3px 10px", borderRadius: 20, fontWeight: 600 }}>⏳ {pendingCount} Pending</span>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button onClick={exportExcel} disabled={filtered.length === 0}
+              style={{ padding: "6px 14px", background: "#f0fdf4", color: "#15803d", border: "1px solid #86efac", borderRadius: 7, cursor: filtered.length === 0 ? "default" : "pointer", fontSize: 13, fontWeight: 600 }}>
+              ⬇ Excel
+            </button>
             <button onClick={() => setShowUpload(true)}
               style={{ padding: "6px 14px", border: "1px solid #d1d5db", borderRadius: 7, cursor: "pointer", background: "white", fontSize: 13 }}>
               📥 Upload Excel
