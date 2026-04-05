@@ -84,13 +84,13 @@ export default function DashboardPage() {
     staleTime: 0,
   })
 
-  // Completed deputation this month — includes linked complaint cm_category for row mapping
+  // Completed deputation this month
   const { data: monthDeps=[] } = useQuery({
     queryKey: ["dash-month-deps", year, month],
     queryFn: async () => {
       const {data,error} = await supabase
         .from("deputation")
-        .select("id,work_type,complaints(cm_category),sites(customers(category))")
+        .select("id,work_type,site_id,complaints(cm_category)")
         .eq("status","Completed")
         .gte("deputation_date", monthStart)
         .lte("deputation_date", monthEnd)
@@ -100,10 +100,25 @@ export default function DashboardPage() {
     staleTime: 60000,
   })
 
-  // Customers with category — no longer needed (using cm_category from complaints)
-  // kept as empty to avoid breaking references
-  const customers = []
-  const hasCatData = true
+  // Site → customer_id map (for PM category lookup)
+  const { data: sitesFlat=[] } = useQuery({
+    queryKey: ["sites-customer-ids"],
+    queryFn: async () => {
+      const {data,error} = await supabase.from("sites").select("id,customer_id")
+      return error ? [] : (data??[])
+    },
+    staleTime: 300000,
+  })
+
+  // Customer → category map
+  const { data: customersFlat=[] } = useQuery({
+    queryKey: ["customers-categories"],
+    queryFn: async () => {
+      const {data,error} = await supabase.from("customers").select("id,category")
+      return error ? [] : (data??[])
+    },
+    staleTime: 300000,
+  })
 
   // Manual plan targets stored per month
   const { data: targetsRaw=[] } = useQuery({
@@ -137,6 +152,15 @@ export default function DashboardPage() {
 
   const custMap = {}
 
+  // site_id (number) → customer category string — built from two flat queries
+  const siteCatMap = useMemo(() => {
+    const custCat = {}                                      // customerId → category
+    customersFlat.forEach(c => { custCat[c.id] = c.category })
+    const m = {}
+    sitesFlat.forEach(s => { if(s.customer_id) m[s.id] = custCat[s.customer_id] ?? null })
+    return m
+  }, [sitesFlat, customersFlat])
+
   const tgtMap = useMemo(()=>{
     const m={}; targetsRaw.forEach(t=>{ m[t.category]=t }); return m
   },[targetsRaw])
@@ -164,15 +188,15 @@ export default function DashboardPage() {
       c[row.key] = monthDeps.filter(d=>{
         if(!row.workTypes.includes(d.work_type)) return false
         if(row.cmCat){
-          // CM jobs carry category via linked complaint; PM jobs carry it via site→customer
-          const cat = d.complaints?.cm_category ?? d.sites?.customers?.category
+          // CM deps carry category via linked complaint; PM deps via site→customer map
+          const cat = d.complaints?.cm_category ?? siteCatMap[d.site_id]
           return cat === row.cmCat
         }
         return true
       }).length
     })
     return c
-  },[monthDeps,custMap,tgtMap])
+  },[monthDeps, siteCatMap, tgtMap])
 
   const totalPlan = ROWS.filter(r=>!r.planNA).reduce((s,r)=>s+(tgtMap[r.key]?.target??0),0)
   const totalDone = ROWS.reduce((s,r)=>s+(doneCounts[r.key]??0),0)
