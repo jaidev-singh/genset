@@ -192,6 +192,52 @@ export default function DashboardPage() {
   const todayCompleted = todayJobs.filter(j=>j.status==="Completed").length
   const todayCancelled = todayJobs.filter(j=>j.status==="Cancelled").length
 
+  // ── excel exports ─────────────────────────────────────────────────────────
+
+  const exportDeputation = () => {
+    const headers = ["Technician", "Site ID", "Site Name", "Work Type", "PM/CM No.", "Status"]
+    const rows = todayJobs.map(j => [
+      j.technicians?.name ?? "",
+      j.sites?.site_id ?? "",
+      j.sites?.name ?? "",
+      j.work_type,
+      j.pm_plan?.pm_request_number ?? j.complaints?.complaint_number ?? j.ref_number ?? "",
+      j.status,
+    ])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Deputation")
+    XLSX.writeFile(wb, `deputation-${today}.xlsx`)
+  }
+
+  const exportEOD = () => {
+    const monthLabel = `${MONTH_NAMES[month-1]}-${year}`
+    const headers = ["Category", "Plan", "Done", "Balance"]
+    const dataRows = ROWS.map(row => {
+      const plan = row.planNA ? "N/A" : (tgtMap[row.key]?.target ?? 0)
+      const done = doneCounts[row.key] ?? 0
+      const bal  = row.planNA ? "—" : ((tgtMap[row.key]?.target ?? 0) - done)
+      return [row.label, plan, done, bal]
+    })
+    const totalRow = ["Total", totalPlan, totalDone, totalPlan - totalDone]
+    const evrRow   = ["EVR", "", attendCount > 0 ? (evrUnits / attendCount).toFixed(2) : "—",
+                      `${evrUnits} units ÷ ${attendCount} person-days`]
+    const pmVisitRow = ["PM Visits", "", pmVisitsDone, ""]
+    const ws = XLSX.utils.aoa_to_sheet([
+      [`Monthly EOD Report — ${monthLabel}`],
+      [],
+      headers,
+      ...dataRows,
+      totalRow,
+      [],
+      evrRow,
+      pmVisitRow,
+    ])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "EOD Report")
+    XLSX.writeFile(wb, `eod-report-${monthLabel}.xlsx`)
+  }
+
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -212,10 +258,16 @@ export default function DashboardPage() {
         <Card>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
             <span style={{fontWeight:700,fontSize:15}}>Today's Deputation</span>
-            <div style={{display:"flex",gap:8}}>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <Pill bg="#eff6ff" color="#1d4ed8">{todayPlanned} Planned</Pill>
               <Pill bg="#f0fdf4" color="#15803d">{todayCompleted} Done</Pill>
               {todayCancelled>0 && <Pill bg="#fef2f2" color="#dc2626">{todayCancelled} Cancelled</Pill>}
+              {todayJobs.length>0 && (
+                <button onClick={exportDeputation}
+                  style={{padding:"4px 12px",background:"#f0fdf4",color:"#15803d",border:"1px solid #86efac",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>
+                  ⬇ Excel
+                </button>
+              )}
             </div>
           </div>
 
@@ -263,6 +315,9 @@ export default function DashboardPage() {
             </span>
             <button onClick={nextMonth} style={NAV_BTN}>›</button>
             {isCurrentMonth && <Pill bg="#eff6ff" color="#1d4ed8">Current month</Pill>}
+            <button onClick={exportEOD} style={{marginLeft:"auto",padding:"4px 12px",background:"#f0fdf4",color:"#15803d",border:"1px solid #86efac",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>
+              ⬇ Excel
+            </button>
           </div>
 
           <div style={{overflowX:"auto"}}>
