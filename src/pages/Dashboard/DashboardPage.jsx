@@ -90,7 +90,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const {data,error} = await supabase
         .from("deputation")
-        .select("id,work_type,site_id,complaints(cm_category),pm_plan(cm_category)")
+        .select("id,work_type,site_id,cm_category")
         .eq("status","Completed")
         .gte("deputation_date", monthStart)
         .lte("deputation_date", monthEnd)
@@ -159,8 +159,7 @@ export default function DashboardPage() {
       c[row.key] = monthDeps.filter(d=>{
         if(!row.workTypes.includes(d.work_type)) return false
         if(row.cmCat){
-          // CM: category from linked complaint; PM: category from pm_plan.cm_category
-          const cat = d.complaints?.cm_category ?? d.pm_plan?.cm_category
+          const cat = d.cm_category
           return cat === row.cmCat
         }
         return true

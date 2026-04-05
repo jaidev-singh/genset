@@ -168,14 +168,15 @@ export default function DeputationForm({ onSaved }) {
         const cm   = cmBySiteId[s.id]
         return {
           ...s,
-          _planId:      plan?._planId      ?? plan?.id ?? null,
-          _planNum:     plan?.pm_request_number ?? null,
-          _planDate:    plan?.planned_date ?? null,
-          _serviceType: plan?.service_type ?? null,
-          _complaintId:  cm?.id ?? null,
-          _complaintNum: cm?.complaint_number ?? null,
-          _cmCategory:   cm?.cm_category ?? null,
-          _cmNature:     cm?.cm_nature ?? null,
+          _planId:         plan?.id ?? null,
+          _planNum:        plan?.pm_request_number ?? null,
+          _planDate:       plan?.planned_date ?? null,
+          _serviceType:    plan?.service_type ?? null,
+          _planCmCategory: plan?.cm_category ?? null,
+          _complaintId:    cm?.id ?? null,
+          _complaintNum:   cm?.complaint_number ?? null,
+          _cmCategory:     cm?.cm_category ?? null,
+          _cmNature:       cm?.cm_nature ?? null,
         }
       })
   }, [query, sites, planBySiteId, cmBySiteId])
@@ -188,7 +189,7 @@ export default function DeputationForm({ onSaved }) {
 
     Promise.all([
       supabase.from("pm_plan")
-        .select("id, pm_request_number, planned_date, service_type, plan_type")
+        .select("id, pm_request_number, planned_date, service_type, plan_type, cm_category")
         .eq("site_id", site.id)
         .in("status", ["Pending"])
         .order("planned_date")
@@ -216,13 +217,13 @@ export default function DeputationForm({ onSaved }) {
   // â”€â”€ handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const selectSite = item => {
-    const { _planId, _planNum, _planDate, _serviceType, _complaintId, _complaintNum, _cmCategory, _cmNature, ...siteData } = item
+    const { _planId, _planNum, _planDate, _serviceType, _planCmCategory, _complaintId, _complaintNum, _cmCategory, _cmNature, ...siteData } = item
     setSite(siteData)
     setQuery(siteData.site_id)
     setShowSugg(false)
     if (_planId) {
       setPmPlanId(_planId)
-      setPendingPlan({ id: _planId, pm_request_number: _planNum, planned_date: _planDate, service_type: _serviceType })
+      setPendingPlan({ id: _planId, pm_request_number: _planNum, planned_date: _planDate, service_type: _serviceType, cm_category: _planCmCategory })
       setOpenComplaints([])
       setComplaintId("")
     } else if (_complaintId) {
@@ -273,6 +274,18 @@ export default function DeputationForm({ onSaved }) {
           other_task_desc: workType === "Other" ? otherDesc.trim() : null,
           ref_number:      refNumber.trim() || null,
           status:          "Planned",
+          cm_category:     (
+            (complaintId && openComplaints.find(c => String(c.id) === String(complaintId))?.cm_category) ||
+            pendingPlan?.cm_category ||
+            null
+          ),
+          cm_category:     (
+            // from linked complaint
+            (complaintId && openComplaints.find(c => String(c.id) === String(complaintId))?.cm_category) ||
+            // from linked pm_plan
+            pendingPlan?.cm_category ||
+            null
+          ),
         })
         .select("id")
         .single()

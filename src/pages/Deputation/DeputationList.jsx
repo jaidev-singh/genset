@@ -101,10 +101,10 @@ export default function DeputationList() {
       const { data, error } = await supabase
         .from("deputation")
         .select(`
-          id, deputation_date, work_type, status, notes, other_task_desc, ref_number,
+          id, deputation_date, work_type, status, notes, other_task_desc, ref_number, cm_category,
           sites(id, site_id, name, site_location, kva),
           technicians(id, name),
-          pm_plan(id, pm_request_number, planned_date, service_type),
+          pm_plan(id, pm_request_number, planned_date, service_type, cm_category),
           complaints(id, complaint_number, cm_category)
         `)
         .eq("deputation_date", date)
@@ -146,7 +146,11 @@ export default function DeputationList() {
       // 1. Update deputation status
       const { error: e1 } = await supabase
         .from("deputation")
-        .update({ status: "Completed", notes: doneNotes || job.notes })
+        .update({
+          status:      "Completed",
+          notes:       doneNotes || job.notes,
+          cm_category: pmCategory || job.complaints?.cm_category || job.pm_plan?.cm_category || null,
+        })
         .eq("id", job.id)
       if (e1) throw e1
 
