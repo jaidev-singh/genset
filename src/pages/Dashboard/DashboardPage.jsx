@@ -120,6 +120,20 @@ export default function DashboardPage() {
     staleTime: 300000,
   })
 
+  // Site category derived from complaints (most reliable — user fills cm_category there)
+  const { data: siteComplaintCats=[] } = useQuery({
+    queryKey: ["site-complaint-cats"],
+    queryFn: async () => {
+      const {data,error} = await supabase
+        .from("complaints")
+        .select("site_id,cm_category")
+        .not("site_id","is",null)
+        .not("cm_category","is",null)
+      return error ? [] : (data??[])
+    },
+    staleTime: 300000,
+  })
+
   // Manual plan targets stored per month
   const { data: targetsRaw=[] } = useQuery({
     queryKey: ["monthly-targets", year, month],
@@ -152,14 +166,14 @@ export default function DashboardPage() {
 
   const custMap = {}
 
-  // site_id (number) → customer category string — built from two flat queries
+  // site_id → category — derived from complaints (user fills cm_category there)
+  // Falls back to customers.category if the complaint-based lookup misses a site.
   const siteCatMap = useMemo(() => {
-    const custCat = {}                                      // customerId → category
-    customersFlat.forEach(c => { custCat[c.id] = c.category })
     const m = {}
-    sitesFlat.forEach(s => { if(s.customer_id) m[s.id] = custCat[s.customer_id] ?? null })
+    // Primary source: complaints cm_category (most reliably filled by users)
+    siteComplaintCats.forEach(c => { if(c.site_id && c.cm_category) m[c.site_id] = c.cm_category })
     return m
-  }, [sitesFlat, customersFlat])
+  }, [siteComplaintCats])
 
   const tgtMap = useMemo(()=>{
     const m={}; targetsRaw.forEach(t=>{ m[t.category]=t }); return m
