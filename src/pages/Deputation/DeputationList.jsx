@@ -46,6 +46,7 @@ export default function DeputationList() {
   const [doneDate, setDoneDate] = useState("")
   const [doneNotes, setDoneNotes] = useState("")
   const [pmReqNum, setPmReqNum] = useState("")   // only shown when no plan linked + PM work
+  const [pmCategory, setPmCategory] = useState("") // category for new pm_plan
   const [approving, setApproving] = useState(false)
   const [approveErr, setApproveErr] = useState("")
 
@@ -131,6 +132,7 @@ export default function DeputationList() {
     setDoneDate(date)
     setDoneNotes("")
     setPmReqNum(job.ref_number ?? "")
+    setPmCategory("")
     setApproveErr("")
   }
 
@@ -177,6 +179,7 @@ export default function DeputationList() {
             planned_date:      doneDate,
             service_type:      job.work_type === "PM Visit" ? "PM Visit" : job.work_type,
             plan_type:         "Internal",
+            cm_category:       pmCategory || null,
             status:            "Done",
             done_date:         doneDate,
             month:             d.getMonth() + 1,
@@ -510,18 +513,31 @@ export default function DeputationList() {
               style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, marginBottom: 14, boxSizing: "border-box" }}
             />
 
-            {/* PM Request Number — only shown for PM work with no linked plan */}
+            {/* PM Request Number + Category — only shown for PM work with no linked plan */}
             {PM_TYPES_LINKED_TO_PLAN.has(modal.job.work_type) && !modal.job.pm_plan && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4, color: "#374151" }}>
-                  PM Request No. <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af" }}>(optional — auto-generated if blank)</span>
-                </label>
-                <input
-                  value={pmReqNum} onChange={e => setPmReqNum(e.target.value)}
-                  placeholder={`DEP-${modal.job.id}`}
-                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4, color: "#374151" }}>
+                    PM Request No. <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af" }}>(optional — auto-generated if blank)</span>
+                  </label>
+                  <input
+                    value={pmReqNum} onChange={e => setPmReqNum(e.target.value)}
+                    placeholder={`DEP-${modal.job.id}`}
+                    style={{ width: "100%", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: 7, fontSize: 13, boxSizing: "border-box" }}
+                  />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4, color: "#374151" }}>
+                    Category <span style={{ color: "#ef4444" }}>*</span>
+                    <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af", marginLeft: 4 }}>(needed for dashboard PM count)</span>
+                  </label>
+                  <select value={pmCategory} onChange={e => setPmCategory(e.target.value)}
+                    style={{ width: "100%", padding: "8px 10px", border: pmCategory ? "1px solid #d1d5db" : "1px solid #f59e0b", borderRadius: 7, fontSize: 13, boxSizing: "border-box" }}>
+                    <option value="">— select —</option>
+                    {["Telecom","Corporate","Retail","Other"].map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </>
             )}
 
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Notes</label>
