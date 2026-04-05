@@ -90,7 +90,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const {data,error} = await supabase
         .from("deputation")
-        .select("id,work_type,site_id,complaints(cm_category)")
+        .select("id,work_type,site_id,complaints(cm_category),pm_plan(cm_category)")
         .eq("status","Completed")
         .gte("deputation_date", monthStart)
         .lte("deputation_date", monthEnd)
@@ -98,40 +98,6 @@ export default function DashboardPage() {
       return data
     },
     staleTime: 60000,
-  })
-
-  // Site → customer_id map (for PM category lookup)
-  const { data: sitesFlat=[] } = useQuery({
-    queryKey: ["sites-customer-ids"],
-    queryFn: async () => {
-      const {data,error} = await supabase.from("sites").select("id,customer_id")
-      return error ? [] : (data??[])
-    },
-    staleTime: 300000,
-  })
-
-  // Customer → category map
-  const { data: customersFlat=[] } = useQuery({
-    queryKey: ["customers-categories"],
-    queryFn: async () => {
-      const {data,error} = await supabase.from("customers").select("id,category")
-      return error ? [] : (data??[])
-    },
-    staleTime: 300000,
-  })
-
-  // Site category derived from complaints (most reliable — user fills cm_category there)
-  const { data: siteComplaintCats=[] } = useQuery({
-    queryKey: ["site-complaint-cats"],
-    queryFn: async () => {
-      const {data,error} = await supabase
-        .from("complaints")
-        .select("site_id,cm_category")
-        .not("site_id","is",null)
-        .not("cm_category","is",null)
-      return error ? [] : (data??[])
-    },
-    staleTime: 300000,
   })
 
   // Manual plan targets stored per month
@@ -166,15 +132,6 @@ export default function DashboardPage() {
 
   const custMap = {}
 
-  // site_id → category — derived from complaints (user fills cm_category there)
-  // Falls back to customers.category if the complaint-based lookup misses a site.
-  const siteCatMap = useMemo(() => {
-    const m = {}
-    // Primary source: complaints cm_category (most reliably filled by users)
-    siteComplaintCats.forEach(c => { if(c.site_id && c.cm_category) m[c.site_id] = c.cm_category })
-    return m
-  }, [siteComplaintCats])
-
   const tgtMap = useMemo(()=>{
     const m={}; targetsRaw.forEach(t=>{ m[t.category]=t }); return m
   },[targetsRaw])
@@ -202,15 +159,15 @@ export default function DashboardPage() {
       c[row.key] = monthDeps.filter(d=>{
         if(!row.workTypes.includes(d.work_type)) return false
         if(row.cmCat){
-          // CM deps carry category via linked complaint; PM deps via site→customer map
-          const cat = d.complaints?.cm_category ?? siteCatMap[d.site_id]
+          // CM: category from linked complaint; PM: category from pm_plan.cm_category
+          const cat = d.complaints?.cm_category ?? d.pm_plan?.cm_category
           return cat === row.cmCat
         }
         return true
       }).length
     })
     return c
-  },[monthDeps, siteCatMap, tgtMap])
+  },[monthDeps, tgtMap])
 
   const totalPlan = ROWS.filter(r=>!r.planNA).reduce((s,r)=>s+(tgtMap[r.key]?.target??0),0)
   const totalDone = ROWS.reduce((s,r)=>s+(doneCounts[r.key]??0),0)

@@ -17,6 +17,7 @@ const PLAN_TYPES    = ["Customer", "Internal"]
 const AMC_TYPES     = ["AMC", "Non-AMC"]
 const FOLD_STATUSES = ["In-fold", "Out-fold"]
 const STATUSES      = ["Pending", "Assigned", "Done", "Cancelled"]
+const CM_CATEGORIES = ["Telecom", "Corporate", "Retail", "Other"]
 
 const STATUS_STYLE = {
   Pending:   { bg: "#eff6ff", color: "#1d4ed8" },
@@ -37,6 +38,7 @@ const EMPTY_FORM = {
   plan_type: "Customer",
   amc_type: "AMC",
   fold_status: "",
+  cm_category: "",
   status: "Pending",
   remarks: "",
   // site lookup
@@ -139,7 +141,7 @@ export default function PmPlanPage() {
       const { data, error } = await supabase
         .from("pm_plan")
         .select(`id, pm_request_number, planned_date, service_type, plan_type, amc_type,
-                 fold_status, status, done_date, remarks, month, year, assigned_to,
+                 fold_status, cm_category, status, done_date, remarks, month, year, assigned_to,
                  sites(id, site_id, name, site_location, kva, contact_person, contact_phone),
                  technicians(name)`)
         .eq("month", filterMonth)
@@ -220,6 +222,7 @@ export default function PmPlanPage() {
       plan_type:    row.plan_type    ?? "Customer",
       amc_type:     row.amc_type     ?? "AMC",
       fold_status:  row.fold_status  ?? "",
+      cm_category:  row.cm_category  ?? "",
       status:       row.status       ?? "Pending",
       remarks:      row.remarks      ?? "",
       site_id_fk:   row.sites?.id    ?? null,
@@ -247,6 +250,7 @@ export default function PmPlanPage() {
       plan_type:     form.plan_type,
       amc_type:      form.amc_type || null,
       fold_status:   form.fold_status || null,
+      cm_category:   form.cm_category || null,
       status:        form.status,
       remarks:       form.remarks || null,
       site_id:       form.site_id_fk,
@@ -370,7 +374,7 @@ export default function PmPlanPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, background: "white", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                  {["#", "PM No.", "Date", "Status", "Site ID", "Site Name", "District", "KVA", "Type", "Plan", "AMC", "Customer", "Phone", "Technician", "Remarks"].map(h => (
+                  {["#", "PM No.", "Date", "Status", "Category", "Site ID", "Site Name", "District", "KVA", "Type", "Plan", "AMC", "Customer", "Phone", "Technician", "Remarks"].map(h => (
                     <th key={h} style={{ padding: "10px 10px", textAlign: "left", fontWeight: 700, color: "#374151", whiteSpace: "nowrap", fontSize: 12 }}>{h}</th>
                   ))}
                 </tr>
@@ -392,6 +396,7 @@ export default function PmPlanPage() {
                     <td style={{ padding: "8px 10px", fontWeight: 700, whiteSpace: "nowrap" }}>{p.pm_request_number}</td>
                     <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>{p.planned_date ?? "—"}</td>
                     <td style={{ padding: "8px 10px" }}><Badge status={p.status} /></td>
+                    <td style={{ padding: "8px 10px" }}>{p.cm_category ? <span style={{ background: "#f1f5f9", padding: "2px 7px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{p.cm_category}</span> : <span style={{ color: "#d1d5db" }}>—</span>}</td>
                     <td style={{ padding: "8px 10px", fontWeight: 600 }}>{p.sites?.site_id ?? "—"}</td>
                     <td style={{ padding: "8px 10px" }}>{p.sites?.name ?? "—"}</td>
                     <td style={{ padding: "8px 10px" }}>{p.sites?.site_location ?? "—"}</td>
@@ -486,6 +491,15 @@ export default function PmPlanPage() {
                     {AMC_TYPES.map(t => <option key={t}>{t}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label style={labelStyle}>Category</label>
+                <select value={form.cm_category} onChange={set("cm_category")} style={inputStyle}>
+                  <option value="">— select —</option>
+                  {CM_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                </select>
               </div>
 
               {/* Fold Status + Status — side by side */}
