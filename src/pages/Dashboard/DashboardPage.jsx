@@ -34,16 +34,18 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 const EVR_TYPES   = new Set(["PM Service","Top Up","CM","Commissioning"])
 
 // Row definitions for the monthly report table.
-// cmCat: complaints.cm_category value to filter PM/CM work by. null = any.
-// planNA:  plan column shows "N/A" (e.g. Commissioning is demand-driven)
-// manual:  done count is entered manually (Overhauling has no deputation work type)
+// cmCat: deputation cm_category to filter by. null = any.
+// planNA:  plan column shows "N/A"
+// manual:  done count is entered manually
+// infoOnly: shown as informational note row, NOT counted in Total
 const ROWS = [
-  { key:"telecom_pm",   label:"Telecom PM",   workTypes:["PM Service","Top Up"], cmCat:"Telecom",   planNA:false, manual:false },
-  { key:"cm",           label:"CM",            workTypes:["CM"],                  cmCat:null,        planNA:false, manual:false },
-  { key:"overhauling",  label:"Overhauling",   workTypes:[],                      cmCat:null,        planNA:false, manual:true  },
-  { key:"retail_pm",    label:"Retail PM",     workTypes:["PM Service","Top Up"], cmCat:"Retail",    planNA:false, manual:false },
-  { key:"corporate_pm", label:"Corporate PM",  workTypes:["PM Service","Top Up"], cmCat:"Corporate", planNA:false, manual:false },
-  { key:"commissioning",label:"Commissioning", workTypes:["Commissioning"],       cmCat:null,        planNA:true,  manual:false },
+  { key:"total_pm",     label:"Total PM",      workTypes:["PM Service","Top Up"], cmCat:null,        planNA:false, manual:false, infoOnly:false },
+  { key:"telecom_pm",   label:"Telecom PM",   workTypes:["PM Service","Top Up"], cmCat:"Telecom",   planNA:false, manual:false, infoOnly:true  },
+  { key:"retail_pm",    label:"Retail PM",     workTypes:["PM Service","Top Up"], cmCat:"Retail",    planNA:false, manual:false, infoOnly:true  },
+  { key:"corporate_pm", label:"Corporate PM",  workTypes:["PM Service","Top Up"], cmCat:"Corporate", planNA:false, manual:false, infoOnly:true  },
+  { key:"cm",           label:"CM",            workTypes:["CM"],                  cmCat:null,        planNA:false, manual:false, infoOnly:false },
+  { key:"overhauling",  label:"Overhauling",   workTypes:[],                      cmCat:null,        planNA:false, manual:true,  infoOnly:false },
+  { key:"commissioning",label:"Commissioning", workTypes:["Commissioning"],       cmCat:null,        planNA:true,  manual:false, infoOnly:false },
 ]
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -90,7 +92,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const {data,error} = await supabase
         .from("deputation")
-        .select("id,work_type,site_id,cm_category")
+        .select("id,deputation_date,work_type,status,site_id,cm_category,ref_number,technicians(name),pm_plan(pm_request_number,cm_category),sites(site_id,name,customers(category))")
         .eq("status","Completed")
         .gte("deputation_date", monthStart)
         .lte("deputation_date", monthEnd)
@@ -152,14 +154,14 @@ export default function DashboardPage() {
     const c={}
     ROWS.forEach(row=>{
       if(row.manual){
-        // overhauling done is stored under key "<rowkey>_done" in monthly_targets
         c[row.key] = tgtMap[row.key+"_done"]?.target ?? 0
         return
       }
       c[row.key] = monthDeps.filter(d=>{
         if(!row.workTypes.includes(d.work_type)) return false
         if(row.cmCat){
-          const cat = d.cm_category
+          // category resolution: deputation → linked pm_plan → customer
+          const cat = d.cm_category || d.pm_plan?.cm_category || d.sites?.customers?.category || null
           return cat === row.cmCat
         }
         return true
@@ -168,8 +170,9 @@ export default function DashboardPage() {
     return c
   },[monthDeps, tgtMap])
 
-  const totalPlan = ROWS.filter(r=>!r.planNA).reduce((s,r)=>s+(tgtMap[r.key]?.target??0),0)
-  const totalDone = ROWS.reduce((s,r)=>s+(doneCounts[r.key]??0),0)
+  // infoOnly rows are not counted in the grand total
+  const totalPlan = ROWS.filter(r=>!r.planNA && !r.infoOnly).reduce((s,r)=>s+(tgtMap[r.key]?.target??0),0)
+  const totalDone = ROWS.filter(r=>!r.infoOnly).reduce((s,r)=>s+(doneCounts[r.key]??0),0)
 
   // ── save target (or manual done for overhauling) ──────────────────────────
 
@@ -207,6 +210,35 @@ export default function DashboardPage() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Deputation")
     XLSX.writeFile(wb, `deputation-${today}.xlsx`)
+  }
+
+  const exportMonthDeps = () => {
+    const monthLabel = `${MONTH_NAMES[month-1]}-${year}`
+    const headers = ["Date","Technician","Site ID","Site Name","Work Type","PM No.","Status","dep.cm_category","pm_plan.cm_category","customer.category","Resolved Category"]
+    const rows = monthDeps.map(d => {
+      const depCat      = d.cm_category ?? ""
+      const planCat     = d.pm_plan?.cm_category ?? ""
+      const custCat     = d.sites?.customers?.category ?? ""
+      const resolved    = depCat || planCat || custCat || "(none)"
+      return [
+        d.deputation_date ?? "",
+        d.technicians?.name ?? "",
+        d.sites?.site_id ?? "",
+        d.sites?.name ?? "",
+        d.work_type ?? "",
+        d.pm_plan?.pm_request_number ?? d.ref_number ?? "",
+        d.status ?? "",
+        depCat,
+        planCat,
+        custCat,
+        resolved,
+      ]
+    })
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws["!cols"] = [10,16,10,22,14,16,12,14,14,14,12].map(wch=>({wch}))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Deputation Raw")
+    XLSX.writeFile(wb, `deputation-raw-${monthLabel}.xlsx`)
   }
 
   const exportEOD = () => {
@@ -314,9 +346,14 @@ export default function DashboardPage() {
             </span>
             <button onClick={nextMonth} style={NAV_BTN}>›</button>
             {isCurrentMonth && <Pill bg="#eff6ff" color="#1d4ed8">Current month</Pill>}
-            <button onClick={exportEOD} style={{marginLeft:"auto",padding:"4px 12px",background:"#f0fdf4",color:"#15803d",border:"1px solid #86efac",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>
-              ⬇ Excel
-            </button>
+            <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+              <button onClick={exportMonthDeps} style={{padding:"4px 12px",background:"#eff6ff",color:"#1d4ed8",border:"1px solid #bfdbfe",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>
+                ⬇ Raw Deps
+              </button>
+              <button onClick={exportEOD} style={{padding:"4px 12px",background:"#f0fdf4",color:"#15803d",border:"1px solid #86efac",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600}}>
+                ⬇ EOD Report
+              </button>
+            </div>
           </div>
 
           <div style={{overflowX:"auto"}}>
@@ -336,8 +373,12 @@ export default function DashboardPage() {
                   const done = doneCounts[row.key] ?? 0
                   const bal  = plan - done
                   return (
-                    <tr key={row.key} style={{borderBottom:"1px solid #f3f4f6"}}>
-                      <td style={{padding:"9px 14px",fontWeight:600,color:"#374151"}}>{row.label}</td>
+                    <tr key={row.key} style={{borderBottom:"1px solid #f3f4f6", opacity: row.infoOnly ? 0.75 : 1}}>
+                      <td style={{padding:"9px 14px",fontWeight:600,color: row.infoOnly ? "#6b7280" : "#374151",paddingLeft: row.infoOnly ? 28 : 14}}>
+                        {row.infoOnly && <span style={{color:"#d1d5db",marginRight:4}}>↳</span>}
+                        {row.label}
+                        {row.infoOnly && <span style={{fontSize:10,fontWeight:400,color:"#9ca3af",marginLeft:4}}>(needs category set)</span>}
+                      </td>
 
                       {/* Plan — editable except N/A rows */}
                       <td style={{padding:"9px 14px",textAlign:"right"}}>
@@ -366,7 +407,7 @@ export default function DashboardPage() {
                   )
                 })}
 
-                {/* ── Total ── */}
+                {/* ── Total (excludes infoOnly rows) ── */}
                 <tr style={{borderTop:"2px solid #e2e8f0",background:"#f8fafc"}}>
                   <td style={{padding:"10px 14px",fontWeight:800,fontSize:14}}>Total</td>
                   <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,fontSize:14}}>{totalPlan}</td>
@@ -411,7 +452,7 @@ export default function DashboardPage() {
           <div style={{marginTop:12,fontSize:11,color:"#9ca3af",lineHeight:1.6}}>
             Attendance P-days till {isCurrentMonth?"today":MONTH_NAMES[month-1]}: <b style={{color:"#374151"}}>{attendCount}</b>
             &nbsp;|&nbsp;EVR units: <b style={{color:"#374151"}}>{evrUnits}</b> (PM Service + Top Up + CM + Commissioning)
-            <span style={{display:"block",marginTop:4}}>Telecom/Retail/Corporate PM counts use the <b>cm_category</b> of the linked complaint in deputation.</span>
+            <span style={{display:"block",marginTop:4}}>↳ Category breakdown (Telecom/Retail/Corporate) requires <b>category</b> to be set on pm_plan or customer records. Set category when approving in the Deputation list.</span>
           </div>
         </Card>
 
