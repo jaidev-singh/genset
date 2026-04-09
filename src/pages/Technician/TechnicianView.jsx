@@ -200,7 +200,7 @@ export default function TechnicianView() {
   if (!isLoaded) return <div style={{ padding: 20 }}>Loading map…</div>
 
   return (
-    <div style={{ height: "100vh", width: "100%", display: "flex", overflow: "hidden", position: "relative" }}>
+    <div style={{ height: "100%", width: "100%", display: "flex", overflow: "hidden", position: "relative" }}>
 
       {/* ── Pulse keyframe (injected once) ────────────────────────────────── */}
       <style>{`
