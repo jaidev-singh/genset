@@ -190,7 +190,7 @@ export default function DeputationForm({ onSaved }) {
           _cmCount:        cms.length,
         }
       })
-  }, [query, sites, planBySiteId, cmBySiteId])
+  }, [query, sites, planBySiteId, cmsBySiteId])
 
   // When site changes → fetch pending pm_plan + open complaints
   useEffect(() => {
