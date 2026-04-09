@@ -149,7 +149,16 @@ export default function DeputationForm({ onSaved }) {
 
   // Build lookup maps for PM plans and complaints by site id
   const planBySiteId  = useMemo(() => { const m = {}; pendingPlans.forEach(p => { if (p.sites) m[p.sites.id] = p }); return m  }, [pendingPlans])
-  const cmBySiteId    = useMemo(() => { const m = {}; openComplaintsGlobal.forEach(c => { if (c.sites) m[c.sites.id] = c }); return m }, [openComplaintsGlobal])
+  // Keep ALL complaints per site (not just one) so we can show count in suggestions
+  const cmsBySiteId   = useMemo(() => {
+    const m = {}
+    openComplaintsGlobal.forEach(c => {
+      if (!c.sites) return
+      if (!m[c.sites.id]) m[c.sites.id] = []
+      m[c.sites.id].push(c)
+    })
+    return m
+  }, [openComplaintsGlobal])
 
   const suggestions = useMemo(() => {
     if (!query.trim()) return []
@@ -165,7 +174,8 @@ export default function DeputationForm({ onSaved }) {
       .slice(0, 10)
       .map(s => {
         const plan = planBySiteId[s.id]
-        const cm   = cmBySiteId[s.id]
+        const cms  = cmsBySiteId[s.id] ?? []   // all open complaints for this site
+        const cm   = cms[0] ?? null             // first one for backward-compat fields
         return {
           ...s,
           _planId:         plan?.id ?? null,
@@ -177,6 +187,7 @@ export default function DeputationForm({ onSaved }) {
           _complaintNum:   cm?.complaint_number ?? null,
           _cmCategory:     cm?.cm_category ?? null,
           _cmNature:       cm?.cm_nature ?? null,
+          _cmCount:        cms.length,
         }
       })
   }, [query, sites, planBySiteId, cmBySiteId])
@@ -217,7 +228,7 @@ export default function DeputationForm({ onSaved }) {
   // â”€â”€ handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const selectSite = item => {
-    const { _planId, _planNum, _planDate, _serviceType, _planCmCategory, _complaintId, _complaintNum, _cmCategory, _cmNature, ...siteData } = item
+    const { _planId, _planNum, _planDate, _serviceType, _planCmCategory, _complaintId, _complaintNum, _cmCategory, _cmNature, _cmCount, ...siteData } = item
     setSite(siteData)
     setQuery(siteData.site_id)
     setShowSugg(false)
@@ -227,6 +238,7 @@ export default function DeputationForm({ onSaved }) {
       setOpenComplaints([])
       setComplaintId("")
     } else if (_complaintId) {
+      // Note: full list gets loaded by the useEffect when site changes
       setComplaintId(String(_complaintId))
       setOpenComplaints([{ id: _complaintId, complaint_number: _complaintNum, cm_category: _cmCategory, cm_nature: _cmNature }])
       setPendingPlan(null)
@@ -300,8 +312,17 @@ export default function DeputationForm({ onSaved }) {
           .eq("status", "Pending")  // only if still pending (avoid overwriting Done)
       }
 
+      // If a complaint was linked → mark it In Process
+      if (complaintId) {
+        await supabase.from("complaints")
+          .update({ work_status: "In Process" })
+          .eq("id", Number(complaintId))
+          .eq("work_status", "Pending")  // only if still pending
+      }
+
       qc.invalidateQueries({ queryKey: ["deputation-list"] })
       qc.invalidateQueries({ queryKey: ["pm-plans-map"] })
+      qc.invalidateQueries({ queryKey: ["complaints"] })
 
       // Reset only site/work fields â€” keep date + tech so the admin can
       // quickly add the next job for the same technician on the same day
@@ -409,7 +430,7 @@ export default function DeputationForm({ onSaved }) {
                         <span style={{ fontSize: 12, color: "#6b7280" }}>{s.name || ""}</span>
                       </div>
                       {s._planNum && <div style={{ fontSize: 11, color: "#1d4ed8" }}>ðŸ“‹ {s._planNum} Â· {s._planDate} Â· {s._serviceType}</div>}
-                      {s._complaintNum && <div style={{ fontSize: 11, color: "#c2410c" }}>âš ï¸ {s._complaintNum}{s._cmNature ? ` Â· ${s._cmNature}` : ""}</div>}
+                      {s._complaintNum && <div style={{ fontSize: 11, color: "#c2410c" }}>⚠️ {s._complaintNum}{s._cmNature ? ` · ${s._cmNature}` : ""}{s._cmCount > 1 ? ` (+${s._cmCount - 1} more)` : ""}</div>}
                       {!s._planNum && !s._complaintNum && s.site_location && <div style={{ fontSize: 11, color: "#9ca3af" }}>{s.site_location}</div>}
                     </div>
                   ))}
